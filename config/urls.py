@@ -29,7 +29,7 @@ urlpatterns = [
     path("analytics/", include("analytics.urls", namespace="analytics")),
     path("login/", SignInView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
-    path("admin/", admin.site.urls),
+    path("site-admin/", admin.site.urls),
 ]
 
 # Serve uploaded photos while developing; production needs real file storage.
