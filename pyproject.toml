@@ -3,9 +3,7 @@ name = "streetfix"
 version = "0.1.0"
 description = "A CMS for street reporting."
 readme = "README.md"
-authors = [
-    { name = "Molly Thompson", email = "molly@mollythompson.org" }
-]
+authors = [{ name = "Molly Thompson", email = "molly@mollythompson.org" }]
 requires-python = ">=3.14.0, <3.15"
 dependencies = [
     "cloudinary>=1.47.0",
@@ -40,20 +38,34 @@ exclude = ["*/migrations/", "*/__init__.py", "manage.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "S", "DJ", "N", "D"]
-ignore = ["D203", "D213"]   # Prefer D211 and D212 to align with Google docstring conventions
+ignore = [
+    "D203",
+    "D213",
+] # Prefer D211 and D212 to align with Google docstring conventions
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.extend-per-file-ignores]
-"**/tests/**/*.py" = ["S101"]                       # Allow use of assert for tests
-"**/tests/conftest.py" = ["S106"]                   # Allow test fixture for user model to contain hardcoded password
-"**/tests/test_accounts/test_models.py" = ["S106"]  # Allow tests for user model to contain hardcoded password
-"**/**/models.py" = ["D106"]                        # Allow model Meta classes to not have docstring
-"**/**/forms.py" = ["D106"]                         # Allow form Meta classes to not have docstring
-"**/tests/factories.py" = ["D101", "D102", "D106"]  # Allow factory Meta classes and methods to not have docstring
-"**/apps.py" = ["D101"]                             # Allow AppConfig classes to not have docstring
-"config/settings/*.py" = ["F403", "F405"]           # Allow wildcard imports in settings modules
+"**/tests/**/*.py" = ["S101"] # Allow use of assert for tests
+"**/tests/conftest.py" = [
+    "S106",
+] # Allow test fixture for user model to contain hardcoded password
+"**/tests/test_accounts/test_models.py" = [
+    "S106",
+] # Allow tests for user model to contain hardcoded password
+"**/**/models.py" = ["D106"] # Allow model Meta classes to not have docstring
+"**/**/forms.py" = ["D106"] # Allow form Meta classes to not have docstring
+"**/tests/factories.py" = [
+    "D101",
+    "D102",
+    "D106",
+] # Allow factory Meta classes and methods to not have docstring
+"**/apps.py" = ["D101"] # Allow AppConfig classes to not have docstring
+"config/settings/*.py" = [
+    "F403",
+    "F405",
+] # Allow wildcard imports in settings modules
 
 
 [tool.ruff.format]
@@ -65,35 +77,39 @@ strict = true
 ignore_missing_imports = true
 exclude = ["manage.py", "/migrations/"]
 
+[[tool.mypy.overrides]]
+module = "allauth.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "allauth.account.*"
+ignore_missing_imports = true
+
 [tool.django-stubs]
 django_settings_module = "config.settings.development"
 
 # djLint for template linting & formatting
 [tool.djlint]
 # Docs unclear in some cases re defaults; config included for all desired rules
-allow_empty_input=true
-profile="django"
-files=["templates/*"]
-custom_blocks="body,content,title,extra_head,extra_body"
-name_endblocks=true
-preserve_blank_lines=true
-blank_line_after_tag="load,extends,include"
-close_void_tags=false
-single_attribute_per_line=true
-sort_attributes=true
-format_attribute_template_tags=true
-no_entity_formatting=true
-ignore_case=false
+allow_empty_input = true
+profile = "django"
+files = ["templates/*"]
+custom_blocks = "body,content,title,extra_head,extra_body"
+name_endblocks = true
+preserve_blank_lines = true
+blank_line_after_tag = "load,extends,include"
+close_void_tags = false
+single_attribute_per_line = true
+sort_attributes = true
+format_attribute_template_tags = true
+no_entity_formatting = true
+ignore_case = false
 
 # Pytest & pytest-cov for testing & coverage reporting
 [tool.pytest]
 DJANGO_SETTINGS_MODULE = "config.settings.testing"
-testpaths = [
-    "tests/",
-]
-addopts = [
-    "--reuse-db",
-]
+testpaths = ["tests/"]
+addopts = ["--reuse-db"]
 
 [tool.coverage.run]
 # Restrict measurement exclusively to these directories

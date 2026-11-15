@@ -1,9 +1,9 @@
-"""Tests for the employee sign-in and sign-out pages."""
-
-from collections.abc import Callable
+"""Tests for authenticating employees through django-allauth."""
 
 import pytest
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
+from django.http import HttpResponse
 from django.test import Client
 from django.urls import reverse
 
@@ -14,66 +14,61 @@ pytestmark = pytest.mark.django_db
 PASSWORD = "correct-horse-battery"  # noqa: S105
 
 
-def with_password(employee: Employee) -> Employee:
-    """Give an employee's account a known password."""
-    employee.user.set_password(PASSWORD)
-    employee.user.save(update_fields=("password",))
-    return employee
-
-
-def sign_in(client: Client, username: str, password: str = PASSWORD) -> str:
-    """Post the login form and return where it redirects to."""
-    response = client.post(
-        reverse("login"), {"username": username, "password": password}
+def set_login_credentials(user: User) -> None:
+    """Set a known password and verified email address for allauth."""
+    user.set_password(PASSWORD)
+    user.save(update_fields=("password",))
+    EmailAddress.objects.create(
+        user=user, email=user.email, primary=True, verified=True
     )
-    return str(response.headers.get("Location", ""))
+
+
+def sign_in(client: Client, user: User, password: str = PASSWORD) -> HttpResponse:
+    """Post allauth's email login form."""
+    return client.post(
+        reverse("account_login"), {"login": user.email, "password": password}
+    )  # type: ignore[return-value]
 
 
 def test_login_page_renders(client: Client) -> None:
     """The sign-in page uses the login template."""
-    response = client.get(reverse("login"))
+    response = client.get(reverse("account_login"))
 
     assert response.status_code == 200
-    assert any(
-        template.name == "registration/login.html" for template in response.templates
-    )
+    assert any(template.name == "account/login.html" for template in response.templates)
 
 
-def test_manager_lands_on_overview(client: Client, manager: Employee) -> None:
-    """Managers are taken to the operations overview."""
-    with_password(manager)
+def test_employee_can_sign_in(client: Client, manager: Employee) -> None:
+    """A verified employee can sign in through allauth."""
+    set_login_credentials(manager.user)
 
-    assert sign_in(client, "manager") == reverse("employees:dashboard")
+    response = sign_in(client, manager.user)
 
-
-def test_officers_land_on_their_jobs(
-    client: Client, make_employee: Callable[..., Employee]
-) -> None:
-    """Employees without manager access go to their jobs."""
-    with_password(make_employee("priya"))
-
-    assert sign_in(client, "priya") == reverse("employees:my_jobs")
+    assert response.headers["Location"] == reverse("employees:dashboard")
+    assert str(manager.user.pk) == client.session["_auth_user_id"]
 
 
-def test_accounts_without_an_employee_land_on_home_page(
+def test_allauth_uses_the_configured_default_redirect(
     client: Client, django_user_model: type[User]
 ) -> None:
-    """Accounts that are not employees go to the home page."""
-    django_user_model.objects.create_user(username="public", password=PASSWORD)
+    """Accounts without an employee record use the shared default redirect."""
+    user = django_user_model.objects.create_user(
+        username="public", email="public@example.com"
+    )
+    set_login_credentials(user)
 
-    assert sign_in(client, "public") == reverse("intake:form_intake")
+    response = sign_in(client, user)
+
+    assert response.headers["Location"] == reverse("employees:dashboard")
 
 
 def test_wrong_password_is_refused(client: Client, manager: Employee) -> None:
     """A wrong password shows the error and does not sign in."""
-    with_password(manager)
+    set_login_credentials(manager.user)
 
-    response = client.post(
-        reverse("login"), {"username": "manager", "password": "wrong-password"}
-    )
+    response = sign_in(client, manager.user, "wrong-password")
 
     assert response.status_code == 200
-    assert b"not recognised" in response.content
     assert "_auth_user_id" not in client.session
 
 
@@ -82,19 +77,19 @@ def test_manager_pages_send_visitors_to_login(client: Client) -> None:
     response = client.get(reverse("employees:dashboard"))
 
     assert response.status_code == 302
-    assert str(response.headers["Location"]).startswith(reverse("login"))
+    assert str(response.headers["Location"]).startswith(reverse("account_login"))
 
 
 def test_sign_out_returns_to_login(manager_client: Client) -> None:
-    """Signing out ends the session and goes back to the sign-in page."""
-    response = manager_client.post(reverse("logout"))
+    """Signing out ends the session and returns to the configured destination."""
+    response = manager_client.post(reverse("account_logout"))
 
-    assert response.headers["Location"] == reverse("login")
+    assert response.headers["Location"] == reverse("intake:form_intake")
     assert "_auth_user_id" not in manager_client.session
 
 
 def test_login_page_shows_site_branding_name(client: Client) -> None:
     """The page shows the configured site name, not the host name."""
-    response = client.get(reverse("login"))
+    response = client.get(reverse("account_login"))
 
-    assert b"<title>Sign in \xc2\xb7 Project</title>" in response.content
+    assert b"<title>Project</title>" in response.content

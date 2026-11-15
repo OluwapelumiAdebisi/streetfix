@@ -12,6 +12,8 @@ from django.test import Client, RequestFactory
 from site_settings.admin import ThemeSettingsAdmin
 from site_settings.models import NAVBAR_BRAND_ICON_CHOICES, ThemeSettings
 
+pytestmark = pytest.mark.django_db
+
 
 def test_site_name_defaults_to_project() -> None:
     """Use the existing project name until a site name is configured."""

@@ -1,0 +1,191 @@
+"""Tests for UIkit styling on django-allauth forms."""
+
+import re
+from collections.abc import Iterator
+from html.parser import HTMLParser
+
+import pytest
+from django import forms
+from django.conf import settings as django_settings
+from django.template.loader import render_to_string
+from django.test import Client, override_settings
+from django.urls import reverse
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def staticfiles_storage_without_manifest() -> Iterator[None]:
+    """Avoid unrelated manifest lookup for the optional favicon route."""
+    storages = {
+        **django_settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+    with override_settings(STORAGES=storages):
+        yield
+
+
+class FormInputParser(HTMLParser):
+    """Collect input attributes for assertions about generated controls."""
+
+    def __init__(self) -> None:
+        """Initialize the collected control list."""
+        super().__init__()
+        self.inputs: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Record attributes for input elements."""
+        if tag == "input":
+            self.inputs.append(dict(attrs))
+
+
+def assert_entrance_content_centered(content: str) -> None:
+    """Keep entrance headings, intro copy, and submit actions centered."""
+    assert re.search(
+        r'<div class="uk-text-center">\s*<h1>[\s\S]*?</h1>'
+        r"[\s\S]*?<p>[\s\S]*?</p>",
+        content,
+    )
+    form = re.search(r"<form\b[\s\S]*?</form>", content)
+    assert form
+    assert 'class="uk-form-stacked uk-text-left"' in form.group()
+    assert re.search(
+        r'<div class="uk-text-center uk-margin-top">\s*'
+        r'<button class="uk-button uk-button-primary"',
+        form.group(),
+    )
+
+
+def test_login_form_uses_uikit_elements(client: Client) -> None:
+    """Render login fields with UIkit classes and preserve hidden form fields."""
+    response = client.get(reverse("account_login"), {"next": "/employees/"})
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'class="uk-form-stacked uk-text-left"' in content
+    assert 'class="uk-input"' in content
+    assert 'for="id_login"' in content
+    assert 'id="id_login"' in content
+    assert 'name="csrfmiddlewaretoken"' in content
+    assert 'name="next" value="/employees/"' in content
+    assert "allauth-error-summary-title" not in content
+    assert_entrance_content_centered(content)
+
+
+def test_signup_fields_have_visible_labels_and_uikit_controls(client: Client) -> None:
+    """Render signup fields with visible labels and UIkit input controls."""
+    response = client.get(reverse("account_signup"))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'for="id_email"' in content
+    assert 'id="id_email"' in content
+    assert 'class="uk-input"' in content
+    assert 'name="csrfmiddlewaretoken"' in content
+    assert_entrance_content_centered(content)
+
+
+def test_password_reset_page_inherits_entrance_alignment(client: Client) -> None:
+    """Apply the shared entrance layout to pages beyond login and signup."""
+    response = client.get(reverse("account_reset_password"))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert "uk-card-default" in content
+    assert_entrance_content_centered(content)
+
+
+def test_account_inactive_page_inherits_entrance_layout(client: Client) -> None:
+    """Apply the shared entrance shell to a non-form account page."""
+    response = client.get(reverse("account_inactive"))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert "uk-card-default" in content
+    assert re.search(
+        r'<div class="uk-text-center">\s*<h1>[\s\S]*?</h1>[\s\S]*?<p>',
+        content,
+    )
+
+
+def test_fields_render_uikit_markup_for_choice_and_textarea_widgets() -> None:
+    """Render choice controls and textarea values with the matching UIkit class."""
+
+    class WidgetForm(forms.Form):
+        choice = forms.ChoiceField(choices=[("a", "Alpha"), ("b", "Beta")])
+        notes = forms.CharField(widget=forms.Textarea)
+        radios = forms.ChoiceField(
+            choices=[("x", "X-ray"), ("y", "Yankee")],
+            widget=forms.RadioSelect,
+        )
+        selected = forms.MultipleChoiceField(
+            choices=[("m", "Mike"), ("n", "November")],
+            widget=forms.CheckboxSelectMultiple,
+        )
+
+    form = WidgetForm(
+        {
+            "choice": "b",
+            "notes": "Preserved note",
+            "radios": "y",
+            "selected": ["n"],
+        }
+    )
+    content = render_to_string(
+        "allauth/elements/fields.html",
+        {"attrs": {"form": form}},
+    )
+    parser = FormInputParser()
+    parser.feed(content)
+
+    assert 'class="uk-select"' in content
+    assert 'class="uk-textarea"' in content
+    assert 'class="uk-radio"' in content
+    assert 'class="uk-checkbox"' in content
+    assert "selected" in content
+    assert "Preserved note" in content
+    assert "Radios" in content
+    assert all(
+        "required" not in control
+        for control in parser.inputs
+        if control.get("name") == "selected"
+    )
+
+
+def test_signup_errors_are_summarized_and_associated_with_fields(
+    client: Client,
+) -> None:
+    """Show linked errors and preserve non-password input after invalid signup."""
+    response = client.post(
+        reverse("account_signup"),
+        {
+            "username": "ada",
+            "email": "not-an-email",
+            "password1": "a-long-enough-password",
+            "password2": "a-different-password",
+        },
+    )
+    content = response.content.decode()
+    assert response.status_code == 200
+
+    parser = FormInputParser()
+    parser.feed(content)
+
+    email_input = next(
+        input_attrs
+        for input_attrs in parser.inputs
+        if input_attrs.get("id") == "id_email"
+    )
+    described_by = email_input["aria-describedby"]
+
+    assert described_by is not None
+    assert "id_email_errors" in described_by.split()
+
+    assert 'id="allauth-error-summary-title"' in content
+    assert 'href="#id_email"' in content
+    assert 'id="id_email_errors"' in content
+    assert 'aria-invalid="true"' in content
+    assert 'value="ada"' in content
+    assert 'id="id_password2_errors"' in content
