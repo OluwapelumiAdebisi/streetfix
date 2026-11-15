@@ -21,7 +21,7 @@
   {% if urgent %}
     <section class="callout">
       <div class="callout-h">
-        <b>Critical &amp; emergency jobs with no case officer</b>
+        <b>{{ urgent_heading }}</b>
         <span class="count">{{ urgent|length }}</span>
         <span class="grow"></span>
         <a class="btn sm" href="{% url 'employees:dispatch' %}">Open dispatch</a>

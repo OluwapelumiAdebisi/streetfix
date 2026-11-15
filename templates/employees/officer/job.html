@@ -95,13 +95,7 @@
     {% endfor %}
     <form method="post">
       {% csrf_token %}
-      <textarea
-        aria-label="Comment"
-        data-dictate
-        name="content"
-        placeholder="Write a comment…"
-        rows="2"
-      >{{ form.content.value|default:"" }}</textarea>
+      {{ form.content }}
       {% if form.content.errors %}<p class="small" style="color:var(--danger)">Write your comment first.</p>{% endif %}
       <button class="btn-secondary" style="margin-top:8px" type="submit">Add comment</button>
     </form>

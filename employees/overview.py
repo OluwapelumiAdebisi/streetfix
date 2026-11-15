@@ -2,12 +2,13 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 from django.utils import timezone
 
 from .organisation_models import Department, Employee
-from .work_models import WorkAssignment, WorkItem
+from .work_models import Priority, Urgency, WorkAssignment, WorkItem, WorkItemStatus
 
 WAITING_TOO_LONG = timedelta(days=7)
 PAUSED = ("AWAITING_INFORMATION", "AWAITING_PARTS", "ON_HOLD")
@@ -91,24 +92,51 @@ def urgent_unassigned(department: Department, limit: int = 5) -> list[WorkItem]:
     )
 
 
+def _status_labels() -> dict[str, str]:
+    """Return each status's label by code, as named in the admin."""
+    return dict(WorkItemStatus.objects.values_list("code", "label"))
+
+
+def _label(options: QuerySet[Any], code: str) -> str:
+    """Return one option's label from the admin, or its code if missing."""
+    label: str | None = (
+        options.filter(code=code).values_list("label", flat=True).first()
+    )
+    return label or code
+
+
+def status_label(code: str) -> str:
+    """Return a status's label as named in the admin."""
+    return _label(WorkItemStatus.objects.all(), code)
+
+
+def urgent_heading() -> str:
+    """Name critical or emergency work with no case officer, in admin labels."""
+    critical = _label(Priority.objects.all(), "CRITICAL")
+    emergency = _label(Urgency.objects.all(), "EMERGENCY")
+    return f"{critical} or {emergency.lower()} with no case officer"
+
+
 def job_flow(department: Department) -> list[Stage]:
     """Count the department's jobs at each stage, left to right."""
     work = _department_work(department)
+    labels = _status_labels()
+
+    def stage(code: str, url_name: str | None = None) -> Stage:
+        count = work.filter(status__code=code).count()
+        return Stage(labels.get(code, code), count, url_name)
+
     return [
-        Stage("Awaiting triage", work.filter(status__code="SUBMITTED").count()),
+        stage("SUBMITTED"),
         Stage(
             "Needs a case officer",
             needs_case_officer_count(department),
             "employees:dispatch",
         ),
-        Stage(
-            "Assigned",
-            work.filter(status__code="ASSIGNED").count(),
-            "employees:dispatch",
-        ),
-        Stage("In progress", work.filter(status__code="IN_PROGRESS").count()),
+        stage("ASSIGNED", "employees:dispatch"),
+        stage("IN_PROGRESS"),
         Stage("Paused", work.filter(status__code__in=PAUSED).count()),
-        Stage("Resolved", work.filter(status__code="RESOLVED").count()),
+        stage("RESOLVED"),
         Stage(
             "Closed today",
             work.filter(status__code="CLOSED", ended_at__gte=_start_of_today()).count(),
@@ -120,9 +148,13 @@ def needs_attention(department: Department) -> list[Stage]:
     """Count the exceptions a manager should look at."""
     work = _department_work(department).exclude(status__code__in=ENDED)
     unassigned = _unassigned(department)
+    labels = _status_labels()
+    paused = [labels.get(code, code).lower() for code in PAUSED]
+    resolved = labels.get("RESOLVED", "RESOLVED")
+    closed = labels.get("CLOSED", "CLOSED").lower()
     return [
         Stage(
-            "Critical or emergency with no case officer",
+            urgent_heading(),
             unassigned.filter(
                 Q(priority__code="CRITICAL") | Q(urgency__code="EMERGENCY")
             ).count(),
@@ -136,12 +168,12 @@ def needs_attention(department: Department) -> list[Stage]:
             "warning",
         ),
         Stage(
-            "Paused (information, parts or on hold)",
+            f"Paused ({', '.join(paused[:-1])} or {paused[-1]})",
             work.filter(status__code__in=PAUSED).count(),
             tone="warning",
         ),
         Stage(
-            "Resolved, waiting to be closed",
+            f"{resolved}, waiting to be {closed}",
             work.filter(status__code="RESOLVED").count(),
             tone="warning",
         ),

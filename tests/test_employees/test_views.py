@@ -126,10 +126,41 @@ def test_job_flow_counts_each_stage_for_the_department(
 
     counts = flow_counts(manager_client)
 
-    assert counts["Awaiting triage"] == 1
+    assert counts["Submitted"] == 1
     assert counts["Needs a case officer"] == 1
     assert counts["Assigned"] == 1
     assert counts["Paused"] == 1
+
+
+def test_job_flow_uses_status_labels_from_the_admin(
+    manager_client: Client, make_work_item: MakeWorkItem
+) -> None:
+    """Renaming a status in the admin renames its stage on the dashboard."""
+    WorkItemStatus.objects.filter(code="SUBMITTED").update(label="New reports")
+    make_work_item()
+
+    counts = flow_counts(manager_client)
+
+    assert counts["New reports"] == 1
+    assert "Submitted" not in counts
+
+
+def test_dashboard_headings_use_option_labels_from_the_admin(
+    manager_client: Client, make_work_item: MakeWorkItem
+) -> None:
+    """Renamed priorities and statuses rename the dashboard's warnings."""
+    Priority.objects.filter(code="CRITICAL").update(label="Top")
+    WorkItemStatus.objects.filter(code="RESOLVED").update(label="Done")
+    critical = set_status(make_work_item(), "TRIAGED")
+    critical.priority = Priority.objects.get(code="CRITICAL")
+    critical.save()
+
+    response = manager_client.get(reverse("employees:dashboard"))
+    attention = [stage.label for stage in response.context["attention"]]
+
+    assert "Top or emergency with no case officer" in attention
+    assert "Done, waiting to be closed" in attention
+    assert b"<b>Top or emergency with no case officer</b>" in response.content
 
 
 def test_needs_attention_flags_urgent_and_old_unassigned_work(
