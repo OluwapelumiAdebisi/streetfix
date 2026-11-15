@@ -1,0 +1,48 @@
+{% load allauth i18n %}
+
+{% if attrs.form.errors %}
+  <div
+    class="uk-alert-danger uk-margin"
+    aria-labelledby="allauth-error-summary-title"
+  >
+    <h2 id="allauth-error-summary-title" class="uk-h4">{% trans "Please correct the errors below." %}</h2>
+    <ul class="uk-list uk-margin-remove-bottom">
+      {% for error in attrs.form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+      {% for bound_field in attrs.form %}
+        {% for error in bound_field.errors %}
+          <li>
+            <a href="#{{ bound_field.id_for_label }}">{{ bound_field.label }}: {{ error }}</a>
+          </li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% for bound_field in attrs.form %}
+  {% if bound_field.is_hidden %}
+    {{ bound_field }}
+  {% else %}
+    {% if bound_field.field.widget.template_name == "django/forms/widgets/textarea.html" %}
+      {% setvar field_type %}textarea{% endsetvar %}
+    {% elif bound_field.field.widget.template_name == "django/forms/widgets/select.html" %}
+      {% setvar field_type %}select{% endsetvar %}
+    {% else %}
+      {% setvar field_type %}{{ bound_field.field.widget.input_type }}{% endsetvar %}
+    {% endif %}
+    {% element field name=bound_field.html_name type=field_type required=bound_field.field.required value=bound_field.value id=bound_field.auto_id errors=bound_field.errors placeholder=bound_field.field.widget.attrs.placeholder autocomplete=bound_field.field.widget.attrs.autocomplete tabindex=bound_field.field.widget.attrs.tabindex rows=bound_field.field.widget.attrs.rows disabled=bound_field.field.widget.attrs.disabled readonly=bound_field.field.widget.attrs.readonly choices=bound_field.field.choices multiple=bound_field.field.widget.allow_multiple_selected checked=bound_field.value %}
+    {% slot label %}
+    {{ bound_field.label }}
+  {% endslot %}
+  {% slot value %}
+  {{ bound_field.value|default_if_none:"" }}
+{% endslot %}
+{% if bound_field.help_text %}
+  {% slot help_text %}
+  {{ bound_field.help_text }}
+{% endslot %}
+{% endif %}
+{% endelement %}
+{% endif %}
+{% endfor %}

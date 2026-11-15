@@ -1,0 +1,156 @@
+{% load allauth %}
+
+<div class="uk-margin">
+  {% if attrs.type == "radio" or attrs.type == "checkbox" and attrs.choices %}
+    <fieldset
+      class="uk-fieldset"
+      {% if attrs.errors %}aria-invalid="true"{% endif %}
+      {% if attrs.required %}aria-required="true"{% endif %}
+      {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+      {% if slots.help_text and attrs.errors %}
+      {% endif %}
+      {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+      "
+      {% endif %}
+    >
+      <legend class="uk-form-label">{% slot label %}{% endslot %}</legend>
+    <div class="uk-form-controls">
+      {% for choice in attrs.choices %}
+        <label class="uk-display-block" for="{{ attrs.id }}_{{ forloop.counter0 }}">
+          <input
+            class="{% if attrs.type == 'radio' %}uk-radio{% else %}uk-checkbox{% endif %}{% if attrs.errors %}
+                   uk-form-danger{% endif %}"
+            type="{{ attrs.type }}"
+            name="{{ attrs.name }}"
+            id="{{ attrs.id }}_{{ forloop.counter0 }}"
+            value="{{ choice.0 }}"
+            {% if attrs.multiple %}{% if choice.0 in attrs.value %}checked{% endif %}
+            {% elif choice.0 == attrs.value %}
+            checked{% endif %}
+            {% if attrs.type == "radio" and attrs.required %}required{% endif %}
+            {% if attrs.disabled %}disabled{% endif %}
+            {% if attrs.errors %}aria-invalid="true"{% endif %}
+            {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+            {% if slots.help_text and attrs.errors %}
+            {% endif %}
+            {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+            "
+            {% endif %}
+          >
+          {{ choice.1 }}
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+{% elif attrs.type == "checkbox" %}
+  <div class="uk-form-controls">
+    <label class="uk-form-label" for="{{ attrs.id }}">
+      <input
+        class="uk-checkbox{% if attrs.errors %}
+                 uk-form-danger{% endif %}"
+        type="checkbox"
+        {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+        {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+        {% if attrs.value %}checked{% endif %}
+        {% if attrs.required %}required{% endif %}
+        {% if attrs.disabled %}disabled{% endif %}
+        {% if attrs.readonly %}readonly{% endif %}
+        {% if attrs.errors %}aria-invalid="true"{% endif %}
+        {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+        {% if slots.help_text and attrs.errors %}
+        {% endif %}
+        {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+        "
+        {% endif %}
+      >
+      {% slot label %}{% endslot %}
+  </label>
+</div>
+{% else %}
+<label class="uk-form-label" for="{{ attrs.id }}">{% slot label %}{% endslot %}</label>
+<div class="uk-form-controls">
+  {% if attrs.type == "textarea" %}
+    <textarea
+      class="uk-textarea{% if attrs.errors %}
+               uk-form-danger{% endif %}"
+      {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+      {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+      {% if attrs.required %}required{% endif %}
+      {% if attrs.disabled %}disabled{% endif %}
+      {% if attrs.readonly %}readonly{% endif %}
+      {% if attrs.rows %}rows="{{ attrs.rows }}"{% endif %}
+      {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %}
+      {% if attrs.errors %}aria-invalid="true"{% endif %}
+      {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+      {% if slots.help_text and attrs.errors %}
+      {% endif %}
+      {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+      "
+      {% endif %}
+    >{% slot value %}{% endslot %}</textarea>
+{% elif attrs.type == "select" %}
+  <select
+    class="uk-select{% if attrs.errors %}
+             uk-form-danger{% endif %}"
+    {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+    {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+    {% if attrs.required %}required{% endif %}
+    {% if attrs.disabled %}disabled{% endif %}
+    {% if attrs.multiple %}multiple{% endif %}
+    {% if attrs.errors %}aria-invalid="true"{% endif %}
+    {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+    {% if slots.help_text and attrs.errors %}
+    {% endif %}
+    {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+    "
+    {% endif %}
+  >
+    {% for choice in attrs.choices %}
+      <option
+        value="{{ choice.0 }}"
+        {% if attrs.multiple %}{% if choice.0 in attrs.value %}
+          selected{% endif %}
+        {% elif choice.0 == attrs.value %}
+        selected{% endif %}
+      >{{ choice.1 }}</option>
+    {% endfor %}
+  </select>
+{% else %}
+  <input
+    class="uk-input{% if attrs.errors %}
+             uk-form-danger{% endif %}"
+    type="{{ attrs.type }}"
+    {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+    {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+    {% if attrs.value is not None %}value="{{ attrs.value }}"{% endif %}
+    {% if attrs.required %}required{% endif %}
+    {% if attrs.disabled %}disabled{% endif %}
+    {% if attrs.readonly %}readonly{% endif %}
+    {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %}
+    {% if attrs.autocomplete %}autocomplete="{{ attrs.autocomplete }}"{% endif %}
+    {% if attrs.tabindex %}tabindex="{{ attrs.tabindex }}"{% endif %}
+    {% if attrs.errors %}aria-invalid="true"{% endif %}
+    {% if slots.help_text or attrs.errors %}aria-describedby="{% if slots.help_text %}{{ attrs.id }}_help{% endif %}
+    {% if slots.help_text and attrs.errors %}
+    {% endif %}
+    {% if attrs.errors %}{{ attrs.id }}_errors{% endif %}
+    "
+    {% endif %}
+  >
+{% endif %}
+</div>
+{% endif %}
+{% if slots.help_text %}
+  <div id="{{ attrs.id }}_help" class="uk-text-meta uk-margin-small-top">{% slot help_text %}{% endslot %}</div>
+{% endif %}
+{% if attrs.errors %}
+  <ul
+    id="{{ attrs.id }}_errors"
+    class="uk-list uk-text-danger uk-text-small uk-margin-small-top"
+  >
+    {% for error in attrs.errors %}
+      <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+</div>
