@@ -27,3 +27,8 @@ a.back{text-decoration:none}
 .form:has(input[name=safety_report]:checked) .if-safety{display:block}
 .form fieldset:has(input[name=safety_report]:checked){border-color:#f1c3be;background:#fffafa}
 .form fieldset:has(input[name=safety_report]:checked) .step{background:var(--danger-soft);color:var(--danger)}
+
+/* Sign out at the end of My jobs: a full-width button rather than a small link. */
+.sign-out{margin:20px 12px 0}
+.sign-out .btn-secondary{color:var(--danger)}
+.sign-out svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
