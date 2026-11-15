@@ -74,17 +74,24 @@ def test_login_form_uses_uikit_elements(client: Client) -> None:
     assert_entrance_content_centered(content)
 
 
-def test_signup_fields_have_visible_labels_and_uikit_controls(client: Client) -> None:
-    """Render signup fields with visible labels and UIkit input controls."""
+def test_signup_closed_page_shows_message_and_entrance_layout(client: Client) -> None:
+    """Show 'Sign Up Closed' page with entrance layout."""
     response = client.get(reverse("account_signup"))
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert 'for="id_email"' in content
-    assert 'id="id_email"' in content
-    assert 'class="uk-input"' in content
-    assert 'name="csrfmiddlewaretoken"' in content
-    assert_entrance_content_centered(content)
+    assert "Sign Up Closed" in content
+    assert "We are sorry, but the sign up is currently closed." in content
+    # No form should be present
+    assert 'class="uk-form-stacked uk-text-left"' not in content
+    assert 'name="csrfmiddlewaretoken"' not in content
+    # Check entrance layout: centered heading and paragraph in uk-text-center div
+    assert re.search(
+        r'<div class="uk-text-center">\s*<h1>[\s\S]*?</h1>'
+        r"[\s\S]*?<p>[\s\S]*?</p>",
+        content,
+    )
+    assert "uk-card-default" in content
 
 
 def test_password_reset_page_inherits_entrance_alignment(client: Client) -> None:
@@ -154,38 +161,22 @@ def test_fields_render_uikit_markup_for_choice_and_textarea_widgets() -> None:
     )
 
 
-def test_signup_errors_are_summarized_and_associated_with_fields(
-    client: Client,
-) -> None:
-    """Show linked errors and preserve non-password input after invalid signup."""
+def test_signup_post_also_shows_closed_message(client: Client) -> None:
+    """POST to signup URL also shows 'Sign Up Closed' when registration is disabled."""
     response = client.post(
         reverse("account_signup"),
         {
             "username": "ada",
-            "email": "not-an-email",
+            "email": "ada@example.com",
             "password1": "a-long-enough-password",
-            "password2": "a-different-password",
+            "password2": "a-long-enough-password",
         },
     )
     content = response.content.decode()
+
     assert response.status_code == 200
-
-    parser = FormInputParser()
-    parser.feed(content)
-
-    email_input = next(
-        input_attrs
-        for input_attrs in parser.inputs
-        if input_attrs.get("id") == "id_email"
-    )
-    described_by = email_input["aria-describedby"]
-
-    assert described_by is not None
-    assert "id_email_errors" in described_by.split()
-
-    assert 'id="allauth-error-summary-title"' in content
-    assert 'href="#id_email"' in content
-    assert 'id="id_email_errors"' in content
-    assert 'aria-invalid="true"' in content
-    assert 'value="ada"' in content
-    assert 'id="id_password2_errors"' in content
+    assert "Sign Up Closed" in content
+    assert "We are sorry, but the sign up is currently closed." in content
+    # No form or form errors should be present
+    assert 'id="allauth-error-summary-title"' not in content
+    assert 'class="uk-form-stacked uk-text-left"' not in content
