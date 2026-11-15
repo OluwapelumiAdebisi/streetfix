@@ -482,3 +482,14 @@ def test_failed_cloudinary_upload_is_shown_to_the_officer(
     assert response.status_code == 200
     assert b"The photo could not be uploaded. Try again." in response.content
     assert not WorkItemPhoto.objects.exists()
+
+
+def test_officer_status_uses_status_labels_from_the_admin(
+    officer_client: Client, job: WorkItem
+) -> None:
+    """Renaming a status in the admin renames the officer's job chip."""
+    WorkItemStatus.objects.filter(code="ASSIGNED").update(label="Allocated")
+
+    response = officer_client.get(reverse("employees:my_jobs"))
+
+    assert b">Allocated</span>" in response.content

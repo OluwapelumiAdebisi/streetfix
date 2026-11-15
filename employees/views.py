@@ -23,6 +23,8 @@ from .overview import (
     job_flow,
     needs_attention,
     needs_case_officer_count,
+    status_label,
+    urgent_heading,
     urgent_unassigned,
     workforce,
 )
@@ -96,6 +98,7 @@ class EmployeeDashboardView(ManagerMixin, TemplateView):
             self.shell_context("overview"),
             department=department,
             urgent=urgent_unassigned(department),
+            urgent_heading=urgent_heading(),
             flow=job_flow(department),
             attention=attention,
             attention_total=sum(stage.count for stage in attention),
@@ -130,6 +133,7 @@ class DispatchListView(ManagerMixin, TemplateView):
             department=dispatcher.department,
             unassigned=[item for item in work if not item.has_case_officer],  # type: ignore[attr-defined]
             assigned=[item for item in work if item.has_case_officer],  # type: ignore[attr-defined]
+            assigned_label=status_label("ASSIGNED"),
         )
         return context
 

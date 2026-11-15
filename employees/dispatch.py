@@ -57,7 +57,7 @@ def _check_can_dispatch(work_item: WorkItem) -> None:
     if work_item.status.code in NOT_YET_TRIAGED:
         raise ValidationError("Triage this work item before assigning it.")
     if work_item.status.code in ENDED_STATUSES:
-        raise ValidationError("Closed or cancelled work cannot be assigned.")
+        raise ValidationError(f"{work_item.status.label} work cannot be assigned.")
 
 
 @transaction.atomic

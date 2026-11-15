@@ -53,19 +53,19 @@ def status(work_item: WorkItem) -> SafeString:
 
 
 # Officer steps mapped onto the phone stylesheet's status colours.
-OFFICER_STEPS = {
-    "assigned": ("assigned", "Assigned"),
-    "arrived": ("arrived", "Arrived"),
-    "in_progress": ("in_progress", "In progress"),
-}
+OFFICER_STEPS = ("assigned", "arrived", "in_progress")
 
 
 @register.simple_tag
 def officer_status(work_item: WorkItem) -> SafeString:
-    """Render where the officer is with a job as a coloured chip."""
-    style, label = OFFICER_STEPS.get(
-        getattr(work_item, "next_step", ""), ("", work_item.status.label)
-    )
+    """Render where the officer is with a job as a coloured chip.
+
+    Arrived is the officer's own step rather than a work item status, so
+    it is named here; the others show the status label from the admin.
+    """
+    step = getattr(work_item, "next_step", "")
+    style = step if step in OFFICER_STEPS else ""
+    label = "Arrived" if step == "arrived" else work_item.status.label
     return format_html('<span class="st s-{}">{}</span>', style, label)
 
 

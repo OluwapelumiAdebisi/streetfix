@@ -29,7 +29,7 @@
 
   <section class="card">
     <div class="card-h">
-      <h2 class="grow">Assigned</h2>
+      <h2 class="grow">{{ assigned_label }}</h2>
       <span class="hint">{{ assigned|length }} job{{ assigned|length|pluralize }}</span>
     </div>
     {% if assigned %}
