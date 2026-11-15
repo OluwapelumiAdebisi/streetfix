@@ -17,3 +17,6 @@ DATABASES = {
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+# Never call external address lookups from tests.
+REVERSE_GEOCODING = False

@@ -69,6 +69,17 @@ TEMPLATES = [
 ]
 
 
+# Field work
+# Where officers start and end their day, used to estimate travel times.
+FIELD_DEPOT = {
+    "name": "Council House, Victoria Square",
+    "lat": 52.4797,
+    "lng": -1.9026,
+}
+# Look up street addresses for job locations with OpenStreetMap's Nominatim.
+REVERSE_GEOCODING = True
+GEOCODER_USER_AGENT = "StreetFix field app"
+
 # Temporary username/password sign-in until Entra ID is set up.
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "employees:dashboard"
