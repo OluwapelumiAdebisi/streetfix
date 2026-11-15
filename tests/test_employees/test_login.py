@@ -3,6 +3,7 @@
 from collections.abc import Callable
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
@@ -45,13 +46,22 @@ def test_manager_lands_on_overview(client: Client, manager: Employee) -> None:
     assert sign_in(client, "manager") == reverse("employees:dashboard")
 
 
-def test_other_employees_land_on_home_page(
+def test_officers_land_on_their_jobs(
     client: Client, make_employee: Callable[..., Employee]
 ) -> None:
-    """Employees without manager access go to the home page."""
+    """Employees without manager access go to their jobs."""
     with_password(make_employee("priya"))
 
-    assert sign_in(client, "priya") == reverse("intake:form_intake")
+    assert sign_in(client, "priya") == reverse("employees:my_jobs")
+
+
+def test_accounts_without_an_employee_land_on_home_page(
+    client: Client, django_user_model: type[User]
+) -> None:
+    """Accounts that are not employees go to the home page."""
+    django_user_model.objects.create_user(username="public", password=PASSWORD)
+
+    assert sign_in(client, "public") == reverse("intake:form_intake")
 
 
 def test_wrong_password_is_refused(client: Client, manager: Employee) -> None:
