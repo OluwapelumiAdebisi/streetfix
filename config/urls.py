@@ -15,6 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
 from django.urls import include, path
@@ -29,3 +31,6 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
     path("admin/", admin.site.urls),
 ]
+
+# Serve uploaded photos while developing; production needs real file storage.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

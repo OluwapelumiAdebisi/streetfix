@@ -1,0 +1,79 @@
+{# djlint:off H021 #}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      name="viewport"
+    >
+    <meta content="#0f6b63" name="theme-color">
+    <title>{% block title %}My jobs{% endblock title %} · {{ site_name }}</title>
+    <link
+      crossorigin=""
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      rel="stylesheet"
+    >
+    <link href="{% static 'css/fieldops-mobile.css' %}" rel="stylesheet">
+    <link href="{% static 'css/fieldops-mobile-extras.css' %}" rel="stylesheet">
+  </head>
+  <body data-view="{% block view %}{{ tab }}{% endblock view %}">
+    <header id="bar">
+      {% block back %}
+      {% endblock back %}
+      <div class="who">
+        <b>{{ employee.name }}</b>
+        <div class="sub">{% now "H:i" %} · {{ employee.department }}</div>
+      </div>
+    </header>
+    <main id="view">
+      {% for message in messages %}
+        {% if message.level_tag == "danger" %}
+          <div class="errors">{{ message }}</div>
+        {% else %}
+          <div class="draft-note">{{ message }}</div>
+        {% endif %}
+      {% endfor %}
+      {% block content %}
+      {% endblock content %}
+    </main>
+    <nav id="tabs" style="grid-template-columns:repeat(3,1fr)">
+      <a
+        class="{% if tab == 'today' %}on{% endif %}"
+        href="{% url 'employees:my_jobs' %}"
+      >
+        <svg viewBox="0 0 24 24">
+          <path d="M9 3h6v3H9z" />
+          <path d="M8 4.5H6.5A1.5 1.5 0 0 0 5 6v13.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H16" />
+          <path d="m9 13 2 2 4-4" />
+        </svg>
+      My jobs</a>
+      <a
+        class="{% if tab == 'map' %}on{% endif %}"
+        href="{% url 'employees:my_map' %}"
+      >
+        <svg viewBox="0 0 24 24">
+          <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" />
+          <path d="M9 4v14M15 6v14" />
+        </svg>
+      Map</a>
+      <a
+        class="{% if tab == 'alerts' %}on{% endif %}"
+        href="{% url 'employees:my_alerts' %}"
+      >
+        <svg viewBox="0 0 24 24">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+      Alerts</a>
+    </nav>
+    <div id="toast" hidden></div>
+    {% if map_points %}
+      {{ map_points|json_script:"map-points" }}
+      <script crossorigin="" src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {% endif %}
+    <script src="{% static 'js/officer.js' %}"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% block title %}Alerts{% endblock title %}
+
+{% block content %}
+  <h2 class="form-title" style="padding-top:16px">Notifications</h2>
+  {% for alert in alerts %}
+    <a
+      class="card"
+      href="{% url 'employees:my_job' alert.work_item_id %}"
+      style="display:block;
+             color:inherit;
+             text-decoration:none"
+    >
+      <div class="row">
+        <b>{{ alert.author }} · {{ alert.work_item.issue_type.name }}</b><span class="muted small">{{ alert.created_at|date:"j M H:i" }}</span>
+      </div>
+      <div class="small">{{ alert.content }}</div>
+    </a>
+  {% empty %}
+    <p class="pad muted">No notifications.</p>
+  {% endfor %}
+{% endblock content %}

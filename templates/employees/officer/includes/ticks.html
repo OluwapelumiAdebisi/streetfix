@@ -1,0 +1,11 @@
+{% for value, label in field.field.choices %}
+  <label class="chk">
+    <input
+      {% if value in field.value %}checked{% endif %}
+      name="{{ field.html_name }}"
+      type="checkbox"
+      value="{{ value }}"
+    >
+    {{ label }}
+  </label>
+{% endfor %}

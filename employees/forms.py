@@ -52,3 +52,39 @@ class RemoveFromWorkForm(forms.Form):
 
     assignment = forms.IntegerField(widget=forms.HiddenInput)
     reason = forms.CharField(required=False, max_length=500)
+
+
+class PhotoField(forms.FileField):
+    """An uploaded photo from the phone's camera or gallery."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Ask phones to open the camera."""
+        kwargs.setdefault("required", False)
+        kwargs.setdefault(
+            "widget",
+            forms.ClearableFileInput(
+                attrs={"accept": "image/*", "capture": "environment"}
+            ),
+        )
+        super().__init__(**kwargs)
+
+    def clean(self, data: Any, initial: Any = None) -> Any:
+        """Accept image files only."""
+        image = super().clean(data, initial)
+        content_type = getattr(image, "content_type", "") or ""
+        if image and not content_type.startswith("image/"):
+            raise forms.ValidationError("Upload a photo (an image file).")
+        return image
+
+
+class BeforePhotoForm(forms.Form):
+    """A before photo, or the reason one could not be taken."""
+
+    photo = PhotoField()
+    no_photo_reason = forms.CharField(required=False, max_length=1000)
+
+
+class CommentForm(forms.Form):
+    """A comment from the officer to their manager."""
+
+    content = forms.CharField(max_length=2000)

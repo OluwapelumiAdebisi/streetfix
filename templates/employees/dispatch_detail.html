@@ -11,7 +11,7 @@
   </div>
   <h1>#{{ work_item.pk }} · {{ work_item.issue_type }}</h1>
   <div class="meta">
-    {% prio work_item.priority %} {% status work_item %}
+    {% priority work_item.priority %} {% status work_item %}
     <span class="muted small">{{ work_item.issue_type.department }}</span>
   </div>
 {% endblock heading %}

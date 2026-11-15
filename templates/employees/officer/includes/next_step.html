@@ -1,0 +1,10 @@
+{% if job.next_step == "assigned" %}
+  <form action="{% url 'employees:my_job' job.pk %}" method="post">
+    {% csrf_token %}
+    <button class="btn-primary" name="arrive" type="submit">I have arrived on site</button>
+  </form>
+{% elif job.next_step == "arrived" %}
+  <a class="btn-primary" href="{% url 'employees:before_photo' job.pk %}">Take before photo &amp; start work</a>
+{% else %}
+  <a class="btn-primary" href="{% url 'employees:visit_report' job.pk %}">Complete job report</a>
+{% endif %}

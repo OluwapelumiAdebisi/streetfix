@@ -1,0 +1,113 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% load fieldops %}
+
+{% block content %}
+  <section class="day">
+    <div class="day-top">
+      <div>
+        <span class="eyebrow">Today</span>
+        <div class="day-count"><b>{{ done|length }}</b> of {{ total }} reported</div>
+      </div>
+      <div class="day-finish">
+        <span class="eyebrow">Est. finish</span><b>{{ plan.finish|time:"H:i"|default:"—" }}</b>
+      </div>
+    </div>
+    <div class="prog">
+      <i style="width:{{ progress }}%"></i>
+    </div>
+    <div class="day-meta">
+      <span><b>{{ remaining }}</b> remaining</span><span><b>{{ plan.travel_minutes|minutes }}</b> travel</span><span><b>{{ plan.km|floatformat:1 }}</b> km</span>
+    </div>
+  </section>
+  {% if hero %}
+    <section class="hero">
+      <div class="hero-top">
+        <span class="eyebrow">{% if is_current %}Current job{% else %}Next job{% endif %}</span>
+        {% officer_status hero %}
+      </div>
+      <h2><a href="{% url 'employees:my_job' hero.pk %}">{{ hero.issue_type.name }}</a></h2>
+      <div class="addr">{{ hero.address }}</div>
+      <div class="hero-meta">
+        {% priority hero.priority %}
+        <span>ETA <b>{{ hero.leg.eta|time:"H:i" }}</b></span>
+        <span>Urgency <b>{{ hero.urgency.label }}</b></span>
+      </div>
+      {% if hero.is_case_officer %}
+        {% include "employees/officer/includes/next_step.html" with job=hero %}
+      {% endif %}
+      {% if is_current %}
+        <div class="hero-links one">
+          <a class="btn-secondary" href="{% url 'employees:my_job' hero.pk %}">Job details</a>
+        </div>
+      {% else %}
+        <div class="hero-links">
+          {% include "employees/officer/includes/navigate.html" with job=hero %}
+
+          <a class="btn-secondary" href="{% url 'employees:my_job' hero.pk %}">Job details</a>
+        </div>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="hero hero-empty" style="cursor:default">
+      <b>No jobs left on your route.</b>
+      <span class="muted small">New work from your manager will appear here.</span>
+    </section>
+  {% endif %}
+  {% if rest %}
+    <div class="sec-h">
+      <h3>After that · {{ rest|length }}</h3>
+      <div class="seg">
+        <a
+          class="{% if not show_map %}on{% endif %}"
+          href="{% url 'employees:my_jobs' %}"
+        >List</a>
+        <a
+          class="{% if show_map %}on{% endif %}"
+          href="{% url 'employees:my_jobs' %}?show=map"
+        >Map</a>
+      </div>
+    </div>
+    {% if show_map %}
+      <div class="mmap" data-map></div>
+    {% else %}
+      <ol class="jobs">
+        {% for job in rest %}
+          <li>
+            <span class="n">{{ forloop.counter|add:1 }}</span>
+            <a class="grow" href="{% url 'employees:my_job' job.pk %}">
+              <div class="row">
+                <b>{{ job.issue_type.name }}</b>{% priority job.priority %}
+              </div>
+              <div class="small">{{ job.address }}</div>
+              <div class="t">{% officer_status job %} · {{ job.leg.eta|time:"H:i" }}</div>
+            </a>
+            <span class="chev">›</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  {% endif %}
+  {% if done %}
+    <details class="collapse">
+      <summary>
+        Reported today <span class="st">{{ done|length }}</span>
+      </summary>
+      <div class="body">
+        {% for report in done %}
+          <div class="item">
+            <b>Work item {{ report.work_item_id }}</b> · {{ report.work_item.issue_type.name }}
+            <div class="small muted">{{ report.get_outcome_display }} · {{ report.work_item.status.label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+  <form class="foot" action="{% url 'logout' %}" method="post">
+    {% csrf_token %}
+    Travel times are estimates from the depot.
+    <br>
+    <button type="submit">Sign out</button>
+  </form>
+{% endblock content %}
