@@ -29,6 +29,7 @@ urlpatterns = [
     path("analytics/", include("analytics.urls", namespace="analytics")),
     path("login/", SignInView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("auth/", include("allauth.urls")),
     path("site-admin/", admin.site.urls),
 ]
 

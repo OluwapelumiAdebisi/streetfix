@@ -39,6 +39,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "global_login_required.GlobalLoginRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -52,6 +53,27 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
+LOGIN_URL = "/auth/login/"
+LOGIN_REDIRECT_URL = "/employees/"
+ACCOUNT_LOGOUT_REDIRECT_URL = "/"
+
+ACCOUNT_LOGIN_METHODS = ["email"]
+ACCOUNT_SIGNUP_FIELDS = [
+    "first_name",
+    "last_name",
+    "email*",
+    "username*",
+    "password1*",
+    "password2*",
+]
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+
+# Let Allauth and Django admin handle their own authentication,
+# rather than applying the project's global login requirement.
+PUBLIC_PATHS = [
+    r"^/auth/.*",
+    r"^/site-admin/.*",
+]
 
 TEMPLATES = [
     {
@@ -83,10 +105,6 @@ GEOCODER_USER_AGENT = "StreetFix field app"
 # Store officers' site photos on Cloudinary when it is configured.
 OFFICER_PHOTOS_ON_CLOUDINARY = bool(os.environ.get("CLOUDINARY_URL"))
 
-# Temporary username/password sign-in until Entra ID is set up.
-LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "employees:dashboard"
-LOGOUT_REDIRECT_URL = "login"
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
