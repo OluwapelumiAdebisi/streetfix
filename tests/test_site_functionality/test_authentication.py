@@ -16,11 +16,14 @@ def test_allauth_login_url_is_wired(client: Client) -> None:
     assert response.status_code == 200
 
 
-def test_allauth_signup_url_is_wired(client: Client) -> None:
-    """Test the allauth signup URL resolves successfully."""
+def test_allauth_signup_url_shows_closed_message(client: Client) -> None:
+    """Test the allauth signup URL shows 'Sign Up Closed'."""
     response = client.get(reverse("account_signup"))
 
     assert response.status_code == 200
+    content = response.content.decode()
+    assert "Sign Up Closed" in content
+    assert "We are sorry, but the sign up is currently closed." in content
 
 
 def test_allauth_logout_url_is_wired(client: Client) -> None:
