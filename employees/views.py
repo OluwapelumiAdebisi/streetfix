@@ -6,19 +6,27 @@ dashboards, and related functionality.
 
 from typing import Any
 
+from django.contrib import messages
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
 
-
-class EmployeeDashboardView(TemplateView):
-    """View for the employee dashboard.
-
-    Displays an overview of employee information, tasks,
-    and relevant metrics for employee management.
-    """
-
-    template_name = "employees/dashboard.html"
+from .dispatch import NOT_YET_TRIAGED, assign_work, dispatchable_work, remove_from_work
+from .forms import AssignWorkForm, RemoveFromWorkForm
+from .organisation_models import Employee
+from .overview import (
+    job_flow,
+    needs_attention,
+    needs_case_officer_count,
+    urgent_unassigned,
+    workforce,
+)
+from .work_models import WorkAssignment, WorkItem
 
 
 class SignInView(LoginView):
@@ -38,3 +46,170 @@ class SignInView(LoginView):
         context = super().get_context_data(**kwargs)
         context.pop("site_name", None)
         return context
+
+
+class ManagerMixin(PermissionRequiredMixin):
+    """Restrict a view to managers: employees allowed to assign work."""
+
+    permission_required = "employees.add_workassignment"
+    request: HttpRequest
+
+    def manager(self) -> Employee:
+        """Return the signed-in employee, or refuse access."""
+        user = self.request.user
+        employee = (
+            Employee.objects.filter(user=user).first()
+            if user.is_authenticated
+            else None
+        )
+        if employee is None:
+            raise PermissionDenied("Only employees can manage work.")
+        return employee
+
+    def shell_context(self, active: str) -> dict[str, Any]:
+        """Return what the manager layout's sidebar needs."""
+        return {
+            "active": active,
+            "needs_case_officer": needs_case_officer_count(self.manager().department),
+        }
+
+
+class EmployeeDashboardView(ManagerMixin, TemplateView):
+    """The manager's operations overview for their department.
+
+    Shows the job flow from triage to closure, who is working on what,
+    and the exceptions that need the manager's attention.
+    """
+
+    template_name = "employees/dashboard.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Gather the department's figures."""
+        context = super().get_context_data(**kwargs)
+        department = self.manager().department
+        attention = needs_attention(department)
+        rows = workforce(department)
+        context.update(
+            self.shell_context("overview"),
+            department=department,
+            urgent=urgent_unassigned(department),
+            flow=job_flow(department),
+            attention=attention,
+            attention_total=sum(stage.count for stage in attention),
+            workforce=rows,
+            working=sum(1 for row in rows if row.working_on is not None),
+        )
+        return context
+
+
+class DispatchListView(ManagerMixin, TemplateView):
+    """Department work that needs a case officer, and work already assigned."""
+
+    template_name = "employees/dispatch_list.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Split the department's work into unassigned and assigned."""
+        context = super().get_context_data(**kwargs)
+        dispatcher = self.manager()
+        work = list(dispatchable_work(dispatcher.department))
+        case_officers = {
+            row.work_item_id: row.employee
+            for row in WorkAssignment.objects.filter(
+                work_item__in=work,
+                is_case_officer=True,
+                unassigned_at__isnull=True,
+            ).select_related("employee")
+        }
+        for item in work:
+            item.case_officer = case_officers.get(item.pk)  # type: ignore[attr-defined]
+        context.update(
+            self.shell_context("dispatch"),
+            department=dispatcher.department,
+            unassigned=[item for item in work if not item.has_case_officer],  # type: ignore[attr-defined]
+            assigned=[item for item in work if item.has_case_officer],  # type: ignore[attr-defined]
+        )
+        return context
+
+
+class DispatchDetailView(ManagerMixin, View):
+    """Assign, reassign or remove people on one work item."""
+
+    template_name = "employees/dispatch_detail.html"
+
+    def work_item(self, pk: int) -> WorkItem:
+        """Return the work item if it belongs to the dispatcher's department."""
+        return get_object_or_404(
+            WorkItem.objects.select_related(
+                "issue_type", "priority", "urgency", "status"
+            ),
+            pk=pk,
+            issue_type__department=self.manager().department,
+        )
+
+    def render(
+        self, work_item: WorkItem, form: AssignWorkForm | None = None
+    ) -> HttpResponse:
+        """Show the work item, its team, the assign form and the history."""
+        assignments = work_item.assignments.select_related("employee", "assigned_by")
+        current = [row for row in assignments if row.is_open]
+        return render(
+            self.request,
+            self.template_name,
+            {
+                **self.shell_context("dispatch"),
+                "work_item": work_item,
+                "current": current,
+                "has_case_officer": any(row.is_case_officer for row in current),
+                "support_count": sum(not row.is_case_officer for row in current),
+                "history": list(assignments.order_by("-assigned_at", "-pk")),
+                "form": form or AssignWorkForm(work_item=work_item),
+                "can_assign": work_item.status.code not in NOT_YET_TRIAGED,
+            },
+        )
+
+    def get(self, request: HttpRequest, pk: int) -> HttpResponse:
+        """Show the dispatch page for a work item."""
+        return self.render(self.work_item(pk))
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        """Handle assigning someone or taking them off the work item."""
+        work_item = self.work_item(pk)
+        if "remove" in request.POST:
+            return self.remove(work_item)
+
+        form = AssignWorkForm(request.POST, work_item=work_item)
+        if not form.is_valid():
+            return self.render(work_item, form)
+        employee = form.cleaned_data["employee"]
+        try:
+            assign_work(
+                work_item,
+                employee,
+                case_officer=form.as_case_officer,
+                dispatcher=self.manager(),
+                reason=form.cleaned_data["reason"],
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.render(work_item, form)
+        role = "case officer" if form.as_case_officer else "support"
+        messages.success(request, f"{employee} is now {role} on this job.")
+        return redirect("employees:dispatch_detail", pk=work_item.pk)
+
+    def remove(self, work_item: WorkItem) -> HttpResponse:
+        """Take one person off the work item."""
+        form = RemoveFromWorkForm(self.request.POST)
+        if form.is_valid():
+            assignment = get_object_or_404(
+                WorkAssignment,
+                pk=form.cleaned_data["assignment"],
+                work_item=work_item,
+                unassigned_at__isnull=True,
+            )
+            remove_from_work(
+                assignment,
+                dispatcher=self.manager(),
+                reason=form.cleaned_data["reason"],
+            )
+            messages.success(self.request, f"{assignment.employee} removed from job.")
+        return redirect("employees:dispatch_detail", pk=work_item.pk)

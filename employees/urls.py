@@ -6,10 +6,16 @@ including the employee dashboard view.
 
 from django.urls import path
 
-from .views import EmployeeDashboardView
+from .views import DispatchDetailView, DispatchListView, EmployeeDashboardView
 
 app_name = "employees"
 
 urlpatterns = [
     path("", EmployeeDashboardView.as_view(), name="dashboard"),
+    path("dispatch/", DispatchListView.as_view(), name="dispatch"),
+    path(
+        "dispatch/<int:pk>/",
+        DispatchDetailView.as_view(),
+        name="dispatch_detail",
+    ),
 ]

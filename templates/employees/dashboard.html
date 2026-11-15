@@ -1,36 +1,159 @@
-{% extends "base.html" %}
+{# djlint:off H021 #}
+{% extends "employees/manager_base.html" %}
 
-{% block title %}Employee Dashboard{% endblock %}
+{% load fieldops %}
 
-{% block content %}
-  <div class="uk-grid-match uk-child-width-1-1@m" uk-grid>
-    <div class="uk-width-1-1">
-      <div class="uk-card uk-card-default uk-card-body">
-        <h2 class="uk-card-title">Employee Dashboard</h2>
-        <p class="uk-text-lead">Welcome to the Employee Dashboard</p>
-        <p>This dashboard provides an overview of employee information, tasks, and relevant metrics.</p>
-        <hr class="uk-divider-icon">
-        <div class="uk-grid-match uk-child-width-1-3@m uk-text-center" uk-grid>
-          <div>
-            <div class="uk-card uk-card-default uk-card-body">
-              <h3 class="uk-text-primary">0</h3>
-              <p class="uk-text-meta">Total Employees</p>
-            </div>
-          </div>
-          <div>
-            <div class="uk-card uk-card-default uk-card-body">
-              <h3 class="uk-text-success">0</h3>
-              <p class="uk-text-meta">Active Projects</p>
-            </div>
-          </div>
-          <div>
-            <div class="uk-card uk-card-default uk-card-body">
-              <h3 class="uk-text-warning">0</h3>
-              <p class="uk-text-meta">Pending Tasks</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+{% block title %}Overview{% endblock %}
+
+{% block heading %}
+  <h1>Operations overview</h1>
+  <div class="meta">
+    <span class="muted">{% now "l j F Y" %}</span>
+    <span class="chip">{{ department }}</span>
   </div>
-{% endblock content %}
+{% endblock heading %}
+
+{% block actions %}
+  <a class="btn primary" href="{% url 'employees:dispatch' %}">Open dispatch</a>
+{% endblock actions %}
+
+{% block manager_content %}
+  {% if urgent %}
+    <section class="callout">
+      <div class="callout-h">
+        <b>Critical &amp; emergency jobs with no case officer</b>
+        <span class="count">{{ urgent|length }}</span>
+        <span class="grow"></span>
+        <a class="btn sm" href="{% url 'employees:dispatch' %}">Open dispatch</a>
+      </div>
+      <div class="items">
+        {% for item in urgent %}
+          <div class="item">
+            <div class="grow">
+              <b class="lvl-emergency">{{ item.priority }} · {{ item.urgency }}</b>
+              <span class="muted small">reported {{ item.created_at|timesince }} ago</span>
+              <div class="small">#{{ item.pk }} — {{ item.issue_type }}</div>
+            </div>
+            <a class="btn sm" href="{% url 'employees:dispatch_detail' item.pk %}">#{{ item.pk }}</a>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-h">
+      <h2 class="grow">Today's job flow</h2>
+      <span class="hint">Select a stage to see its jobs</span>
+    </div>
+    <div class="flow" style="--n:{{ flow|length }}">
+      {% for stage in flow %}
+        {% if stage.url_name %}
+          <a
+            class="{% if not stage.count %}zero{% endif %}"
+            href="{% url stage.url_name %}"
+          ><b>{{ stage.count }}</b><span>{{ stage.label }}</span></a>
+        {% else %}
+          <div class="st {% if not stage.count %}zero{% endif %}">
+            <b>{{ stage.count }}</b><span>{{ stage.label }}</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="grid g-main">
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">Workforce today</h2>
+        <span class="hint"><b
+          class="num"
+          style="color:var(--ink)"
+        >{{ working }}</b> of {{ workforce|length }} employees working</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tr>
+            <th>Employee</th>
+            <th>Current job</th>
+            <th style="width:220px">Progress</th>
+          </tr>
+          {% for row in workforce %}
+            <tr>
+              <td>
+                <div class="row" style="flex-wrap:nowrap">
+                  <span class="avatar sm">{{ row.employee.name|slice:":1" }}</span>
+                  <div>
+                    <b>{{ row.employee.name }}</b>
+                    <div class="sub">
+                      <span
+                        class="dotc
+                               {% if row.state == 'working' %}ok{% elif row.state == 'assigned' %}info{% else %}idle{% endif %}"
+                        style="display:inline-block;
+                               margin-right:4px"
+                      ></span>
+                      {% if row.state == "working" %}
+                        Working on a job
+                      {% elif row.state == "assigned" %}
+                        {{ row.open_jobs }} open job{{ row.open_jobs|pluralize }}
+                      {% else %}
+                        No open jobs
+                      {% endif %}
+                      · {{ row.employee.department }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if row.working_on %}
+                  <a href="{% url 'employees:dispatch_detail' row.working_on.pk %}">#{{ row.working_on.pk }}</a> {% status row.working_on %}
+                  <div class="sub">{{ row.working_on.issue_type }}</div>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="prog">
+                  <i style="width:{{ row.progress }}%"></i>
+                </div>
+                <div class="sub num">
+                  <b style="color:var(--ink)">{{ row.closed_today }}</b> done · {{ row.open_jobs }} remaining
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="empty" colspan="3">No employees in scope.</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">Needs attention</h2>
+        {% if attention_total %}
+          <span class="count">{{ attention_total }}</span>
+        {% else %}
+          <span class="chip ok">All clear</span>
+        {% endif %}
+      </div>
+      <nav class="list">
+        {% for stage in attention %}
+          <a
+            href="{% if stage.url_name %}{% url stage.url_name %}{% else %}#{% endif %}"
+          >
+            <span
+              class="dotc
+                     {% if stage.count %}{% if stage.tone == 'danger' %}danger{% else %}warn{% endif %}{% endif %}"
+            ></span>
+            <span class="grow">{{ stage.label }}</span>
+            <span class="num {% if not stage.count %}muted{% endif %}">{{ stage.count }}</span>
+            <span class="chev">›</span>
+          </a>
+        {% endfor %}
+      </nav>
+    </section>
+  </div>
+{% endblock manager_content %}
