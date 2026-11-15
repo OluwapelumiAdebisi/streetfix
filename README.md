@@ -58,9 +58,10 @@ the example `DJANGO_SECRET_KEY` with a development-only secret. The example
 `DATABASE_URL=sqlite:///db.sqlite3` uses a local SQLite database. The local
 database file is ignored by Git.
 
-Cloudinary is only needed to upload a favicon. Set `CLOUDINARY_URL` to
-credentials for your Cloudinary account before using that feature; the rest of
-the local app can be explored without uploading a favicon.
+Cloudinary is used to upload a favicon and to store officers' site photos. Set
+`CLOUDINARY_URL` to credentials for your Cloudinary account before using those
+features. Without it, favicon uploads are unavailable and site photos are saved
+to the local `media/` folder, so the rest of the app can still be explored.
 
 ### Create the database and admin account
 
@@ -95,7 +96,8 @@ development app:
 | `DJANGO_SETTINGS_MODULE` | Settings module. The example selects `config.settings.development`; `manage.py` uses it by default. |
 
 `CLOUDINARY_URL` is optional for general local development and is needed to
-upload a favicon through the theme settings.
+upload a favicon through the theme settings. Without it, officers' site photos
+are saved locally instead of to Cloudinary.
 
 Development settings provide local `ALLOWED_HOSTS` and
 `CSRF_TRUSTED_ORIGINS` defaults. Do not commit `.env` or production credentials.
@@ -161,7 +163,7 @@ the hosting environment:
 - `DATABASE_URL` (the production database connection must support SSL)
 - `ALLOWED_HOSTS` (comma-separated hostnames without a scheme)
 - `CSRF_TRUSTED_ORIGINS` (comma-separated origins including `https://`)
-- `CLOUDINARY_URL` to enable favicon uploads
+- `CLOUDINARY_URL` to enable favicon uploads and store officers' site photos
 
 Collect static files with `uv run python manage.py collectstatic --noinput`.
 The WSGI application is `config.wsgi:application` and can be served with

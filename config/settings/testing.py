@@ -18,5 +18,6 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Never call external address lookups from tests.
+# Never call external address lookups or uploads from tests.
 REVERSE_GEOCODING = False
+OFFICER_PHOTOS_ON_CLOUDINARY = False

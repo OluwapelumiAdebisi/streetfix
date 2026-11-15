@@ -1,5 +1,6 @@
 """Shared configuration elements and global project settings."""
 
+import os
 from pathlib import Path
 
 from django.contrib.messages import constants as messages
@@ -79,6 +80,8 @@ FIELD_DEPOT = {
 # Look up street addresses for job locations with OpenStreetMap's Nominatim.
 REVERSE_GEOCODING = True
 GEOCODER_USER_AGENT = "StreetFix field app"
+# Store officers' site photos on Cloudinary when it is configured.
+OFFICER_PHOTOS_ON_CLOUDINARY = bool(os.environ.get("CLOUDINARY_URL"))
 
 # Temporary username/password sign-in until Entra ID is set up.
 LOGIN_URL = "login"
@@ -126,6 +129,11 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Uploaded files, such as officers' site photos
+MEDIA_URL = "media/"
+
+MEDIA_ROOT = BASE_DIR / "media"
 
 
 STORAGES = {
