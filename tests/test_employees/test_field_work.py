@@ -493,3 +493,13 @@ def test_officer_status_uses_status_labels_from_the_admin(
     response = officer_client.get(reverse("employees:my_jobs"))
 
     assert b">Allocated</span>" in response.content
+
+
+def test_comment_box_is_a_textarea(officer_client: Client, job: WorkItem) -> None:
+    """The job page's comment box keeps dictation and its placeholder."""
+    response = officer_client.get(reverse("employees:my_job", args=[job.pk]))
+    content = response.content.decode()
+
+    assert '<textarea name="content"' in content
+    assert "data-dictate" in content
+    assert 'placeholder="Write a comment…"' in content

@@ -87,4 +87,14 @@ class BeforePhotoForm(forms.Form):
 class CommentForm(forms.Form):
     """A comment from the officer to their manager."""
 
-    content = forms.CharField(max_length=2000)
+    content = forms.CharField(
+        max_length=2000,
+        widget=forms.Textarea(
+            attrs={
+                "aria-label": "Comment",
+                "data-dictate": True,
+                "placeholder": "Write a comment…",
+                "rows": 5,
+            }
+        ),
+    )
