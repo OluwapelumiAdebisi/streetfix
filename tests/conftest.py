@@ -7,10 +7,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import Client
+from pytest_django.fixtures import Settings
 
 from employees.organisation_models import Department, Employee, IssueType
 from employees.work_models import Priority, Urgency, WorkItem, WorkItemStatus
 from site_settings.models import ThemeSettings
+
+User = get_user_model()
 
 
 @pytest.fixture
@@ -25,7 +28,7 @@ def make_employee(db: None) -> Callable[..., Employee]:
 
     def make(username: str = "officer", department: str = "Roads") -> Employee:
         dept, _ = Department.objects.get_or_create(name=department)
-        user = get_user_model().objects.create_user(
+        user = User.objects.create_user(
             username=username,
             email=f"{username}@example.com",
         )
@@ -77,3 +80,9 @@ def manager_client(client: Client, manager: Employee) -> Client:
     """Provide a client signed in as the manager."""
     client.force_login(manager.user)
     return client
+
+
+@pytest.fixture()
+def test_url_path(settings: Settings) -> None:
+    """Pytest fixture to configure test-specific url path."""
+    settings.ROOT_URLCONF = "tests.test_site_functionality.errors.provide_errors"
