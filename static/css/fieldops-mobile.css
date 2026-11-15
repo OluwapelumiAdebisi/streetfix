@@ -38,8 +38,8 @@ body[data-view=job] #tabs,body[data-view=report] #tabs,body[data-view=before] #t
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.grow{flex:1;min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px}
 .card.read{opacity:.65}.note-emergency{border-left:4px solid var(--danger)}.note-warn{border-left:4px solid #e5a00d}.note-safety{border-left:4px solid #d97706}
-.prio{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 10px 2px 8px;font-size:12px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);white-space:nowrap}
-.prio::before{content:"";width:8px;height:8px;border-radius:9px;background:var(--c)}
+.priority{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 10px 2px 8px;font-size:12px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);white-space:nowrap}
+.priority::before{content:"";width:8px;height:8px;border-radius:9px;background:var(--c)}
 .st{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;background:#eef0f3;color:var(--ink-2);white-space:nowrap}
 .s-en_route,.s-arrived,.s-in_progress{background:#e3f4f1;color:var(--accent-ink)}.s-completed{background:#e5f5ea;color:#14803d}.s-assigned{background:#e8effd;color:#1d4ed8}.s-cancelled{background:#eef0f3;color:var(--muted)}
 

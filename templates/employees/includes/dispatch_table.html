@@ -15,7 +15,7 @@
     {% for item in items %}
       <tr>
         <td class="nowrap">
-          <a href="{% url 'employees:dispatch_detail' item.pk %}"><b>#{{ item.pk }}</b></a> {% prio item.priority %}
+          <a href="{% url 'employees:dispatch_detail' item.pk %}"><b>#{{ item.pk }}</b></a> {% priority item.priority %}
         </td>
         <td>{{ item.issue_type }}</td>
         <td class="small">

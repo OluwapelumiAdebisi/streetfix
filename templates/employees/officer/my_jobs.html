@@ -30,7 +30,7 @@
       <h2><a href="{% url 'employees:my_job' hero.pk %}">{{ hero.issue_type.name }}</a></h2>
       <div class="addr">{{ hero.address }}</div>
       <div class="hero-meta">
-        {% prio hero.priority %}
+        {% priority hero.priority %}
         <span>ETA <b>{{ hero.leg.eta|time:"H:i" }}</b></span>
         <span>Urgency <b>{{ hero.urgency.label }}</b></span>
       </div>
@@ -78,7 +78,7 @@
             <span class="n">{{ forloop.counter|add:1 }}</span>
             <a class="grow" href="{% url 'employees:my_job' job.pk %}">
               <div class="row">
-                <b>{{ job.issue_type.name }}</b>{% prio job.priority %}
+                <b>{{ job.issue_type.name }}</b>{% priority job.priority %}
               </div>
               <div class="small">{{ job.address }}</div>
               <div class="t">{% officer_status job %} · {{ job.leg.eta|time:"H:i" }}</div>

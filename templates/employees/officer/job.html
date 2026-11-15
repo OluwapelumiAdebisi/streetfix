@@ -13,7 +13,7 @@
 
 {% block content %}
   <section class="jhead">
-    <div class="chips">{% officer_status job %}{% prio job.priority %}</div>
+    <div class="chips">{% officer_status job %}{% priority job.priority %}</div>
     <h2>{{ job.issue_type.name }}</h2>
     <div class="addr">{{ job.address }}</div>
     <div class="ref">Work item {{ job.pk }} · {{ job.issue_type.department }}</div>

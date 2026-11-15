@@ -31,14 +31,14 @@ STATUS_STYLES = {
 
 
 @register.simple_tag
-def prio(priority: Priority | None) -> SafeString | str:
+def priority(option: Priority | None) -> SafeString | str:
     """Render a priority as a coloured chip."""
-    if priority is None:
+    if option is None:
         return ""
     return format_html(
-        '<span class="prio" style="--c:{}">{}</span>',
-        PRIORITY_COLOURS.get(priority.code, "#64748b"),
-        priority.label,
+        '<span class="priority" style="--c:{}">{}</span>',
+        PRIORITY_COLOURS.get(option.code, "#64748b"),
+        option.label,
     )
 
 

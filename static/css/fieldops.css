@@ -121,8 +121,8 @@ td .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .card > .table-wrap:last-child table tr:last-child td:first-child{border-bottom-left-radius:var(--radius)}
 
 /* ---------- chips & badges ---------- */
-.prio{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:1px 9px 1px 7px;font-size:11px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);white-space:nowrap;line-height:18px}
-.prio::before{content:"";width:7px;height:7px;border-radius:99px;background:var(--c)}
+.priority{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:1px 9px 1px 7px;font-size:11px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);white-space:nowrap;line-height:18px}
+.priority::before{content:"";width:7px;height:7px;border-radius:99px;background:var(--c)}
 .status{display:inline-block;border-radius:99px;padding:1px 9px;font-size:11px;font-weight:500;background:#eef0f3;color:#374151;white-space:nowrap;line-height:18px}
 .s-triage,.s-awaiting_retriage{background:#fdecea;color:#9b1c13}.s-ready{background:#fff3d6;color:#7a5200}.s-assigned{background:#e8effd;color:#1d4ed8}
 .s-en_route,.s-arrived,.s-in_progress{background:#e3f4f1;color:#0b524c}.s-completed{background:#e5f5ea;color:#14803d}
