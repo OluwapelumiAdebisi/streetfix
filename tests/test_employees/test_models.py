@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
@@ -394,3 +395,14 @@ def test_employee_offboarding_clears_contact_details_but_keeps_attribution() -> 
     assert WorkItemComment.objects.get(author=employee).content == (
         "Inspected the location."
     )
+
+
+def test_employees_app_models_have_permissions() -> None:
+    """Django creates permissions for models outside a models.py file."""
+    codenames = set(
+        Permission.objects.filter(content_type__app_label="employees").values_list(
+            "codename", flat=True
+        )
+    )
+
+    assert {"add_workitem", "change_workitem", "add_workassignment"} <= codenames
