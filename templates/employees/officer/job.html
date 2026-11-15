@@ -1,0 +1,120 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% load fieldops %}
+
+{% block title %}{{ job.issue_type.name }}{% endblock title %}
+
+{% block view %}job{% endblock view %}
+
+{% block back %}
+  <a class="back" aria-label="Back" href="{% url 'employees:my_jobs' %}">‹</a>
+{% endblock back %}
+
+{% block content %}
+  <section class="jhead">
+    <div class="chips">{% officer_status job %}{% prio job.priority %}</div>
+    <h2>{{ job.issue_type.name }}</h2>
+    <div class="addr">{{ job.address }}</div>
+    <div class="ref">Work item {{ job.pk }} · {{ job.issue_type.department }}</div>
+    <div class="nav-row">
+      {% include "employees/officer/includes/navigate.html" %}
+
+      <a
+        class="btn-secondary"
+        href="https://maps.apple.com/?daddr={{ job.latitude }},{{ job.longitude }}"
+        rel="noopener"
+        target="_blank"
+      >Apple Maps</a>
+    </div>
+  </section>
+  <section class="facts">
+    <div>
+      <span>ETA</span><b>{{ leg.eta|time:"H:i"|default:"—" }}</b>
+      {% if leg.travel_minutes %}<small>{{ leg.travel_minutes|minutes }} from last stop</small>{% endif %}
+    </div>
+    <div>
+      <span>On site</span><b>{{ on_site_minutes }} min</b><small>estimate</small>
+    </div>
+    <div>
+      <span>Urgency</span><b>{{ job.urgency.label }}</b>
+    </div>
+    <div>
+      <span>Your role</span><b>
+        {% if job.is_case_officer %}
+          Case officer
+        {% else %}
+          Support
+        {% endif %}
+      </b>
+    </div>
+  </section>
+  <section class="card">
+    <h3>The job</h3>
+    <p>
+      {% if description %}
+        {{ description }}
+      {% else %}
+        <span class="muted">No description from the public report.</span>
+      {% endif %}
+    </p>
+    {% if from_management %}
+      <div class="notes">
+        <span class="eyebrow">From management</span>
+        {% for comment in from_management %}
+          <div class="note">
+            <small>{{ comment.created_at|time:"H:i" }} {{ comment.author }}</small>
+            <br>
+            {{ comment.content }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <dl style="margin-top:12px">
+      <dt>Raised</dt>
+      <dd>
+        {{ job.created_at|date:"j M, H:i" }}
+      </dd>
+      <dt>Priority</dt>
+      <dd>
+        {{ job.priority.label }}
+      </dd>
+    </dl>
+  </section>
+  <section class="card comments">
+    <h3>Your comments</h3>
+    {% for comment in mine %}
+      <div class="comment">
+        <small>{{ comment.created_at|date:"j M H:i" }}</small>
+        <div>{{ comment.content }}</div>
+      </div>
+    {% empty %}
+      <p class="small muted">
+        Tell your manager anything they should know: access problems, what you found, parts you need.
+      </p>
+    {% endfor %}
+    <form method="post">
+      {% csrf_token %}
+      <textarea
+        aria-label="Comment"
+        data-dictate
+        name="content"
+        placeholder="Write a comment…"
+        rows="2"
+      >{{ form.content.value|default:"" }}</textarea>
+      {% if form.content.errors %}<p class="small" style="color:var(--danger)">Write your comment first.</p>{% endif %}
+      <button class="btn-secondary" style="margin-top:8px" type="submit">Add comment</button>
+    </form>
+  </section>
+  <div class="mmap sm" data-map data-single="1"></div>
+  {% if job.is_case_officer and job.next_step == "in_progress" %}
+    <div class="more-actions">
+      <a class="btn-link" href="{% url 'employees:visit_report' job.pk %}">Can't complete / report a problem</a>
+    </div>
+  {% endif %}
+  {% if job.is_case_officer %}
+    <div class="action-bar">
+      {% include "employees/officer/includes/next_step.html" %}
+    </div>
+  {% endif %}
+{% endblock content %}

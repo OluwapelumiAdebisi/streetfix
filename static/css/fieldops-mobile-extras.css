@@ -1,0 +1,29 @@
+/* Additions to fieldops-mobile.css for pages served as plain links and
+   forms instead of a single-page app. The original stylesheet is kept
+   unchanged; these rules only map its styles onto links and add the
+   report form's show/hide rules. */
+
+/* Bottom tabs and back button are links here, not buttons. */
+#tabs a{border:0;background:none;padding:8px 2px 6px;font-size:11px;font-weight:600;color:var(--muted);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none}
+#tabs a.on{color:var(--accent)}
+a.back{text-decoration:none}
+.seg a{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.jobs li > a{color:inherit;text-decoration:none}
+.hero h2 a{color:inherit;text-decoration:none}
+.foot button{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px}
+.more-actions a.btn-link{text-decoration:none}
+
+/* Report form: show follow-up questions only when they apply. */
+.form .if-further,.form .if-unfinished,.form .if-additional,.form .if-outstanding,
+.form .if-specialist,.form .if-safety{display:none}
+.form:has(select[name=outcome] option[data-further]:checked) .if-further,
+.form:has(input[name=additional_found][value="1"]:checked) .if-further,
+.form:has(input[name=outstanding][value="1"]:checked) .if-further,
+.form:has(select[name=outcome] option[data-unfinished]:checked) .if-unfinished,
+.form:has(input[name=additional_found][value="1"]:checked) .if-additional,
+.form:has(input[name=outstanding][value="1"]:checked) .if-outstanding,
+.form:has(input[name=further_specialist][value="1"]:checked) .if-specialist,
+.form:has(input[name=safety_report]:checked) .if-safety{display:block}
+.form fieldset:has(input[name=safety_report]:checked){border-color:#f1c3be;background:#fffafa}
+.form fieldset:has(input[name=safety_report]:checked) .step{background:var(--danger-soft);color:var(--danger)}

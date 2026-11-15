@@ -1,0 +1,84 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% block title %}Before you start{% endblock %}
+
+{% block view %}before{% endblock %}
+
+{% block back %}
+  <a
+    class="back"
+    aria-label="Back"
+    href="{% url 'employees:my_job' job.pk %}"
+    style="text-decoration:none"
+  >‹</a>
+{% endblock back %}
+
+{% block content %}
+  <form class="form" enctype="multipart/form-data" method="post" novalidate>
+    {% csrf_token %}
+    <div class="draft-note" style="padding-top:16px">You are on site · arrival recorded</div>
+    <h2 class="form-title" style="padding-top:6px">Before you start</h2>
+    <p class="pad muted small">
+      Photograph the site exactly as you found it, before touching anything. It is added to your completion report automatically.
+    </p>
+    {% if form.errors %}
+      <div class="errors">
+        <b>Please fix:</b>
+        <ul>
+          {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          {% for error in form.photo.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    <fieldset>
+      <legend>
+        <span class="step">1</span>Before photo
+      </legend>
+      <p class="small muted" style="margin:0">{{ job.issue_type.name }} · {{ job.address }}</p>
+      {% if photos %}
+        <div class="thumbs" style="margin-top:12px">
+          {% for photo in photos %}
+            <figure>
+              <img alt="Before photo" src="{{ photo.image_url }}">
+              <figcaption>{{ photo.taken_at|time:"H:i" }}</figcaption>
+            </figure>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <label class="shot {% if not photos %}primary{% endif %}">
+        📷
+        {% if photos %}
+          Add another before photo
+        {% else %}
+          Take before photo
+        {% endif %}
+        <input
+          accept="image/*"
+          capture="environment"
+          hidden
+          name="photo"
+          onchange="this.form.submit()"
+          type="file"
+        >
+      </label>
+    </fieldset>
+    {% if not photos %}
+      <details class="collapse" {% if form.no_photo_reason.value %}open{% endif %}>
+        <summary>I can't take a photo</summary>
+        <div class="body">
+          <label for="bskip">Why can't you take one? (recorded for management review, at least {{ min_reason }} characters)</label>
+          <textarea
+            id="bskip"
+            name="no_photo_reason"
+            placeholder="e.g. Live gas leak — had to make the site safe immediately"
+            rows="3"
+          >{{ form.no_photo_reason.value|default:"" }}</textarea>
+        </div>
+      </details>
+    {% endif %}
+    <div class="action-bar">
+      <button class="btn-primary" name="start" type="submit">Start work</button>
+    </div>
+  </form>
+{% endblock content %}

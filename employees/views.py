@@ -36,9 +36,12 @@ class SignInView(LoginView):
     redirect_authenticated_user = True
 
     def get_default_redirect_url(self) -> str:
-        """Send managers to the overview and everyone else to the home page."""
-        if self.request.user.has_perm("employees.add_workassignment"):
+        """Send managers to the overview and officers to their jobs."""
+        user = self.request.user
+        if user.has_perm("employees.add_workassignment"):
             return reverse("employees:dashboard")
+        if user.is_authenticated and Employee.objects.filter(user=user).exists():
+            return reverse("employees:my_jobs")
         return reverse("intake:form_intake")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:

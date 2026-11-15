@@ -1,0 +1,227 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% block title %}Completion report{% endblock title %}
+
+{% block view %}report{% endblock view %}
+
+{% block back %}
+  <a
+    class="back"
+    aria-label="Back"
+    href="{% url 'employees:my_job' job.pk %}"
+  >‹</a>
+{% endblock back %}
+
+{% block content %}
+  <form class="form" enctype="multipart/form-data" method="post" novalidate>
+    {% csrf_token %}
+    <div class="draft-note">Draft saved each time you add a photo or submit · Work item {{ job.pk }}</div>
+    <h2 class="form-title">Completion report</h2>
+    <p class="pad muted small" style="padding-top:2px">{{ job.issue_type.name }} · {{ job.address }}</p>
+    {% if not has_before_photo and not report.no_before_photo_reason %}
+      <div
+        class="errors"
+        style="background:#fff6e5;
+               border-color:#efcf8a;
+               color:#6b4500"
+      >
+        <b>No before photo yet.</b> Add one in section E, or explain there why you couldn't.
+      </div>
+    {% endif %}
+    {% if errors or form.errors %}
+      <div class="errors">
+        <b>Please fix:</b>
+        <ul>
+          {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+          {% for field in form %}
+            {% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    <fieldset>
+      <legend>
+        <span class="step">A</span>Outcome
+      </legend>
+      <select aria-label="Outcome" name="outcome">
+        <option value="">Choose outcome…</option>
+        {% for value, label in outcomes %}
+          <option
+            {% if value in further_outcomes %}data-further{% endif %}
+            {% if value in unfinished_outcomes %}data-unfinished{% endif %}
+            {% if form.outcome.value == value %}selected{% endif %}
+            value="{{ value }}"
+          >{{ label }}</option>
+        {% endfor %}
+      </select>
+    </fieldset>
+    <fieldset>
+      <legend>
+        <span class="step">B</span>Work carried out
+      </legend>
+      <label for="id_findings">What was the original issue on site?</label>
+      {% include "employees/officer/includes/text.html" with field=form.findings placeholder="e.g. 400mm pothole, 80mm deep, nearside lane" rows=2 %}
+
+      <label for="id_work_done">What work did you carry out?</label>
+      {% include "employees/officer/includes/text.html" with field=form.work_done placeholder="Be specific: what you did, how, where. Job completed is not accepted." rows=4 %}
+
+      <label for="id_actions">Actions taken (optional)</label>
+      {% include "employees/officer/includes/text.html" with field=form.actions placeholder="e.g. set out signs, informed resident" rows=2 %}
+
+      <label for="id_materials">Materials / equipment used</label>
+      {% include "employees/officer/includes/text.html" with field=form.materials placeholder="e.g. 6 bags hot asphalt, compactor plate — or None" rows=2 %}
+
+      <label>Was the original problem resolved?</label>
+      <div class="yn">
+        {% for value, label in form.resolved.field.choices %}
+          <label>
+            <input
+              {% if form.resolved.value == value %}checked{% endif %}
+              name="resolved"
+              type="radio"
+              value="{{ value }}"
+            >
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+      <label>Did you discover any additional problems?</label>
+      {% include "employees/officer/includes/yes_no.html" with field=form.additional_found %}
+
+      <div class="if-additional">
+        {% include "employees/officer/includes/text.html" with field=form.additional_text placeholder="Describe the additional problems" rows=2 %}
+      </div>
+      <label>Is any work still outstanding?</label>
+      {% include "employees/officer/includes/yes_no.html" with field=form.outstanding %}
+
+      <div class="if-outstanding">
+        {% include "employees/officer/includes/text.html" with field=form.outstanding_text placeholder="What remains to be done?" rows=2 %}
+      </div>
+    </fieldset>
+    <fieldset class="hl if-further">
+      <legend>
+        <span class="step">C</span>Further work &amp; re-triage
+      </legend>
+      <label>Reason(s)</label>
+      {% include "employees/officer/includes/ticks.html" with field=form.further_reasons %}
+
+      <label for="id_further_explanation">Detailed explanation of the issue</label>
+      {% include "employees/officer/includes/text.html" with field=form.further_explanation placeholder="What did you find?" %}
+
+      <div class="if-unfinished">
+        <label for="id_further_why_not">Why could the job not be completed?</label>
+        {% include "employees/officer/includes/text.html" with field=form.further_why_not rows=2 %}
+      </div>
+      <label for="id_further_next_steps">Recommended next steps</label>
+      {% include "employees/officer/includes/text.html" with field=form.further_next_steps placeholder="e.g. return with breaker and 2-person gang" rows=2 %}
+
+      <label for="id_further_suggested_priority">
+        Suggested priority for the follow-up <span class="muted small">(management makes the final decision)</span>
+      </label>
+      <select id="id_further_suggested_priority" name="further_suggested_priority">
+        {% for value, label in form.further_suggested_priority.field.choices %}
+          <option
+            {% if form.further_suggested_priority.value == value %}selected{% endif %}
+            value="{{ value }}"
+          >{{ label }}</option>
+        {% endfor %}
+      </select>
+      <label>Specialist assistance required?</label>
+      {% include "employees/officer/includes/yes_no.html" with field=form.further_specialist %}
+
+      <div class="if-specialist">
+        {% include "employees/officer/includes/text.html" with field=form.further_specialist_text placeholder="What kind of specialist?" rows=2 %}
+      </div>
+      <label for="id_further_equipment">Equipment or materials needed</label>
+      {% include "employees/officer/includes/text.html" with field=form.further_equipment rows=2 %}
+
+      <label>Is the issue urgent?</label>
+      {% include "employees/officer/includes/yes_no.html" with field=form.further_urgent %}
+
+      <label>Has the site been left in a safe condition?</label>
+      <div class="yn">
+        {% for value, label in form.further_site_safe.field.choices %}
+          <label>
+            <input
+              {% if form.further_site_safe.value == value %}checked{% endif %}
+              name="further_site_safe"
+              type="radio"
+              value="{{ value }}"
+            >
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>
+        <span class="step">D</span>Health &amp; safety
+      </legend>
+      <label class="chk">
+        <input
+          {% if form.safety_report.value %}checked{% endif %}
+          name="safety_report"
+          type="checkbox"
+        >
+        I need to report a health &amp; safety concern
+      </label>
+      <div class="if-safety">
+        {% include "employees/officer/includes/ticks.html" with field=form.safety_hazards %}
+        {% include "employees/officer/includes/text.html" with field=form.safety_description placeholder="Describe the hazard and any risk to the public or staff" %}
+
+        <label>Is immediate intervention required?</label>
+        {% include "employees/officer/includes/yes_no.html" with field=form.safety_immediate %}
+
+        <p class="small muted">Your manager sees this as soon as the report is sent.</p>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>
+        <span class="step">E</span>Photographic evidence
+      </legend>
+      <p class="small muted">This job type needs before and after photos.</p>
+      <div class="thumbs">
+        {% for photo in photos %}
+          <figure>
+            <img alt="" src="{{ photo.image_url }}">
+            <figcaption>{{ photo.get_tag_display }} · {{ photo.taken_at|time:"H:i" }}</figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+      <div class="photo-add">
+        <select aria-label="Photo type" name="photo_tag">
+          <option value="AFTER">After</option>
+          <option value="BEFORE">Before</option>
+        </select>
+        <label class="btn primary" style="margin:0">
+          📷 Add photo
+          <input
+            accept="image/*"
+            capture="environment"
+            hidden
+            name="photo"
+            onchange="this.form.submit()"
+            type="file"
+          >
+        </label>
+      </div>
+      <label for="id_photo_exception">Can't take the required photos? Explain why (recorded for management review)</label>
+      {% include "employees/officer/includes/text.html" with field=form.photo_exception placeholder="e.g. police cordon prevented access to photograph after repair" rows=2 %}
+    </fieldset>
+    <fieldset>
+      <legend>
+        <span class="step">F</span>Confirmation
+      </legend>
+      {% for name, label, checked in confirmations %}
+        <label class="chk">
+          <input {% if checked %}checked{% endif %} name="{{ name }}" type="checkbox">
+          {{ label }}
+        </label>
+      {% endfor %}
+    </fieldset>
+    <div class="action-bar">
+      <button class="btn-primary" name="finish" type="submit">Submit report</button>
+    </div>
+  </form>
+{% endblock content %}

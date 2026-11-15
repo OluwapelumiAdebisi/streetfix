@@ -1,4 +1,4 @@
-"""Template tags for the manager pages' priority and status chips."""
+"""Template tags for the priority and status chips on employee pages."""
 
 from django import template
 from django.utils.html import format_html
@@ -50,3 +50,29 @@ def status(work_item: WorkItem) -> SafeString:
         STATUS_STYLES.get(work_item.status.code, ""),
         work_item.status.label,
     )
+
+
+# Officer steps mapped onto the phone stylesheet's status colours.
+OFFICER_STEPS = {
+    "assigned": ("assigned", "Assigned"),
+    "arrived": ("arrived", "Arrived"),
+    "in_progress": ("in_progress", "In progress"),
+}
+
+
+@register.simple_tag
+def officer_status(work_item: WorkItem) -> SafeString:
+    """Render where the officer is with a job as a coloured chip."""
+    style, label = OFFICER_STEPS.get(
+        getattr(work_item, "next_step", ""), ("", work_item.status.label)
+    )
+    return format_html('<span class="st s-{}">{}</span>', style, label)
+
+
+@register.filter
+def minutes(value: float | None) -> str:
+    """Show a number of minutes as "45 min" or "1h 05m"."""
+    total = round(value or 0)
+    if total < 60:
+        return f"{total} min"
+    return f"{total // 60}h {total % 60:02d}m"

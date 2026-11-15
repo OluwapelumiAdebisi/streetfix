@@ -1,0 +1,11 @@
+{# djlint:off H021 #}
+{% extends "employees/officer/base.html" %}
+
+{% block title %}Map{% endblock title %}
+
+{% block content %}
+  <div class="mmap full" data-map></div>
+  <p class="pad small muted">
+    Dashed line shows the order of stops from the depot. Tap a stop, open the job, then Navigate for turn-by-turn directions.
+  </p>
+{% endblock content %}
