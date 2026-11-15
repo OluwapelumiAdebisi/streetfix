@@ -104,10 +104,16 @@
       </div>
     </details>
   {% endif %}
-  <form class="foot" action="{% url 'logout' %}" method="post">
+  <form class="sign-out" action="{% url 'logout' %}" method="post">
     {% csrf_token %}
-    Travel times are estimates from the depot.
-    <br>
-    <button type="submit">Sign out</button>
+    <button class="btn-secondary" type="submit">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <path d="m16 17 5-5-5-5" />
+        <path d="M21 12H9" />
+      </svg>
+      Sign out
+    </button>
   </form>
+  <p class="foot">Travel times are estimates from the depot.</p>
 {% endblock content %}
