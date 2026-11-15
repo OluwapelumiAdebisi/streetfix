@@ -1,0 +1,122 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>{% block title %}{% endblock %} · {{ site_name }}</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link href="{% static 'css/fieldops.css' %}" rel="stylesheet">
+  </head>
+  <body>
+    {% with me=request.user.employee_profile %}
+      <div class="shell">
+        <aside class="side">
+          <a class="brand" href="{% url 'employees:dashboard' %}">
+            <span class="logo">{{ site_name|slice:":1" }}</span>
+            <span>{{ site_name }}<small>Workforce &amp; job management</small></span>
+          </a>
+          <nav class="nav" aria-label="Main">
+            <a
+              class="{% if active == 'overview' %}on{% endif %}"
+              href="{% url 'employees:dashboard' %}"
+            >
+              <svg viewBox="0 0 24 24">
+                <rect height="7" rx="1.5" width="7" x="3" y="3" />
+                <rect height="7" rx="1.5" width="7" x="14" y="3" />
+                <rect height="7" rx="1.5" width="7" x="3" y="14" />
+                <rect height="7" rx="1.5" width="7" x="14" y="14" />
+              </svg>
+              <span class="lbl">Overview</span>
+            </a>
+            <a
+              class="{% if active == 'dispatch' %}on{% endif %}"
+              href="{% url 'employees:dispatch' %}"
+            >
+              <svg viewBox="0 0 24 24">
+                <circle cx="6" cy="18" r="2.5" />
+                <circle cx="18" cy="6" r="2.5" />
+                <path d="M8.5 18H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5" />
+              </svg>
+              <span class="lbl">Dispatch</span>
+              {% if needs_case_officer %}<span class="count">{{ needs_case_officer }}</span>{% endif %}
+            </a>
+          </nav>
+          <div class="side-foot">
+            <details class="menu up">
+              <summary class="me">
+                <span class="avatar">{{ me.name|slice:":1" }}</span>
+                <span class="who"><b>{{ me.name }}</b><span>Manager · {{ me.department }}</span></span>
+              </summary>
+              <div class="menu-pop">
+                <div class="pad small muted">
+                  Signed in as <b>{{ request.user.username }}</b>
+                </div>
+                <a class="mi" href="{% url 'intake:form_intake' %}">Back to {{ site_name }}</a>
+                {% if request.user.is_staff %}<a
+                  class="mi"
+                  href="{% url 'admin:index' %}"
+                >Configuration (admin)</a>{% endif %}
+                <div class="sep"></div>
+                <form action="{% url 'logout' %}" method="post">
+                  {% csrf_token %}
+                  <button class="mi danger" type="submit">Sign out</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </aside>
+
+        <main>
+          <header class="top">
+            <div class="grow"></div>
+          </header>
+
+          <div class="page">
+            <div class="page-h">
+              <div class="grow">
+                {% block heading %}{% endblock %}
+              </div>
+              <div class="page-actions">
+                {% block actions %}{% endblock %}
+              </div>
+            </div>
+            {% if messages %}
+              <div class="msgs">
+                {% for m in messages %}
+                  <div class="msg {{ m.tags }}" role="status">
+                    <span>{{ m }}</span>
+                    <button
+                      class="x"
+                      aria-label="Dismiss"
+                      onclick="this.parentNode.remove()"
+                      type="button"
+                    >×</button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% block manager_content %}{% endblock %}
+          </div>
+        </main>
+      </div>
+    {% endwith %}
+    <script>
+      document.addEventListener('click', function (e) {
+        document.querySelectorAll('details.menu[open]').forEach(function (d) {
+          if (!d.contains(e.target)) d.open = false;
+        });
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('details.menu[open]').forEach(function (d) { d.open = false; });
+        }
+      });
+    </script>
+  </body>
+</html>

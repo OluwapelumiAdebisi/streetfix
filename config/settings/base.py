@@ -69,6 +69,11 @@ TEMPLATES = [
 ]
 
 
+# Temporary username/password sign-in until Entra ID is set up.
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "employees:dashboard"
+LOGOUT_REDIRECT_URL = "login"
+
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 

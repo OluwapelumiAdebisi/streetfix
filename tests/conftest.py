@@ -5,6 +5,8 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.test import Client
 
 from employees.organisation_models import Department, Employee, IssueType
 from employees.work_models import Priority, Urgency, WorkItem, WorkItemStatus
@@ -58,3 +60,20 @@ def make_work_item(db: None) -> Callable[..., WorkItem]:
         )
 
     return make
+
+
+@pytest.fixture
+def manager(make_employee: Callable[..., Employee]) -> Employee:
+    """Provide a Roads employee allowed to manage and assign work."""
+    employee = make_employee("manager")
+    employee.user.user_permissions.add(
+        Permission.objects.get(codename="add_workassignment")
+    )
+    return employee
+
+
+@pytest.fixture
+def manager_client(client: Client, manager: Employee) -> Client:
+    """Provide a client signed in as the manager."""
+    client.force_login(manager.user)
+    return client

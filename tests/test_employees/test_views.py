@@ -1,44 +1,76 @@
 """Tests for employees application views."""
 
+from collections.abc import Callable
+from datetime import timedelta
+
 import pytest
 from django.test import Client
 from django.urls import resolve, reverse
+from django.utils import timezone
 
+from employees.dispatch import assign_work
+from employees.organisation_models import Employee
 from employees.views import EmployeeDashboardView
+from employees.work_models import Priority, WorkItem, WorkItemStatus
 
 pytestmark = pytest.mark.django_db
 
+MakeEmployee = Callable[..., Employee]
+MakeWorkItem = Callable[..., WorkItem]
+
+
+def set_status(item: WorkItem, code: str) -> WorkItem:
+    """Move a work item to a status directly, for test setup."""
+    item.status = WorkItemStatus.objects.get(code=code)
+    item.save(update_fields=("status",))
+    return item
+
+
+def flow_counts(client: Client) -> dict[str, int]:
+    """Return the dashboard's job flow as label to count."""
+    response = client.get(reverse("employees:dashboard"))
+    return {stage.label: stage.count for stage in response.context["flow"]}
+
 
 def test_employee_dashboard_view_url_exists_at_desired_location(
-    client: Client,
+    manager_client: Client,
 ) -> None:
     """Test that the employee dashboard view is accessible at /employees/."""
-    response = client.get("/employees/")
+    response = manager_client.get("/employees/")
 
     assert response.status_code == 200
 
 
-def test_employee_dashboard_view_url_accessible_by_name(client: Client) -> None:
+def test_employee_dashboard_view_url_accessible_by_name(
+    manager_client: Client,
+) -> None:
     """Test that the employee dashboard view is accessible by its URL name."""
-    response = client.get(reverse("employees:dashboard"))
+    response = manager_client.get(reverse("employees:dashboard"))
 
     assert response.status_code == 200
 
 
-def test_employee_dashboard_view_uses_correct_template(client: Client) -> None:
+def test_employee_dashboard_view_uses_correct_template(
+    manager_client: Client,
+) -> None:
     """Test that the employee dashboard view uses the correct template."""
-    response = client.get(reverse("employees:dashboard"))
+    response = manager_client.get(reverse("employees:dashboard"))
 
     assert any(
         template.name == "employees/dashboard.html" for template in response.templates
     )
 
 
-def test_employee_dashboard_view_extends_base_template(client: Client) -> None:
-    """Test that the employee dashboard template extends base.html."""
-    response = client.get(reverse("employees:dashboard"))
+def test_employee_dashboard_view_extends_manager_layout(
+    manager_client: Client,
+) -> None:
+    """Test that the dashboard uses the shared manager layout."""
+    response = manager_client.get(reverse("employees:dashboard"))
 
-    assert any(template.name == "base.html" for template in response.templates)
+    assert any(
+        template.name == "employees/manager_base.html"
+        for template in response.templates
+    )
 
 
 def test_employee_dashboard_view_resolves_to_correct_view_class() -> None:
@@ -49,11 +81,95 @@ def test_employee_dashboard_view_resolves_to_correct_view_class() -> None:
 
 
 def test_employee_dashboard_view_context_contains_expected_content(
-    client: Client,
+    manager_client: Client,
 ) -> None:
     """Test that the response contains expected content."""
-    response = client.get(reverse("employees:dashboard"))
+    response = manager_client.get(reverse("employees:dashboard"))
     content = response.content.decode()
 
-    assert "Employee Dashboard" in content
-    assert "Welcome to the Employee Dashboard" in content
+    assert "Operations overview" in content
+    assert "job flow" in content
+    assert "Needs attention" in content
+
+
+def test_dashboard_requires_sign_in(client: Client) -> None:
+    """Anonymous visitors are sent to sign in."""
+    response = client.get(reverse("employees:dashboard"))
+
+    assert response.status_code == 302
+
+
+def test_dashboard_is_for_managers_only(
+    client: Client, make_employee: MakeEmployee
+) -> None:
+    """Employees who cannot manage work are refused."""
+    client.force_login(make_employee("priya").user)
+
+    response = client.get(reverse("employees:dashboard"))
+
+    assert response.status_code == 403
+
+
+def test_job_flow_counts_each_stage_for_the_department(
+    manager_client: Client,
+    manager: Employee,
+    make_work_item: MakeWorkItem,
+    make_employee: MakeEmployee,
+) -> None:
+    """Each stage counts the manager's department's jobs only."""
+    make_work_item()
+    set_status(make_work_item(), "TRIAGED")
+    assigned = set_status(make_work_item(), "TRIAGED")
+    assign_work(assigned, make_employee("priya"), case_officer=True, dispatcher=manager)
+    set_status(make_work_item(), "AWAITING_PARTS")
+    set_status(make_work_item(issue_code="TREE", department="Parks"), "TRIAGED")
+
+    counts = flow_counts(manager_client)
+
+    assert counts["Awaiting triage"] == 1
+    assert counts["Needs a case officer"] == 1
+    assert counts["Assigned"] == 1
+    assert counts["Paused"] == 1
+
+
+def test_needs_attention_flags_urgent_and_old_unassigned_work(
+    manager_client: Client, make_work_item: MakeWorkItem
+) -> None:
+    """Critical work and work waiting over a week without anyone are flagged."""
+    critical = set_status(make_work_item(), "TRIAGED")
+    critical.priority = Priority.objects.get(code="CRITICAL")
+    critical.save(update_fields=("priority",))
+    old = set_status(make_work_item(), "TRIAGED")
+    WorkItem.objects.filter(pk=old.pk).update(
+        created_at=timezone.now() - timedelta(days=8)
+    )
+
+    response = manager_client.get(reverse("employees:dashboard"))
+    attention = {stage.label: stage.count for stage in response.context["attention"]}
+
+    assert attention["Critical or emergency with no case officer"] == 1
+    assert attention["Waiting over a week for a case officer"] == 1
+    assert response.context["attention_total"] == 2
+
+
+def test_workforce_shows_open_jobs_and_current_work(
+    manager_client: Client,
+    manager: Employee,
+    make_work_item: MakeWorkItem,
+    make_employee: MakeEmployee,
+) -> None:
+    """Each employee shows their open jobs and what is in progress."""
+    priya = make_employee("priya")
+    current = set_status(make_work_item(), "TRIAGED")
+    assign_work(current, priya, case_officer=True, dispatcher=manager)
+    set_status(current, "IN_PROGRESS")
+    helping = set_status(make_work_item(), "TRIAGED")
+    assign_work(helping, priya, case_officer=False, dispatcher=manager)
+
+    response = manager_client.get(reverse("employees:dashboard"))
+    rows = {row.employee: row for row in response.context["workforce"]}
+
+    assert rows[priya].open_jobs == 2
+    assert rows[priya].case_officer_jobs == 1
+    assert rows[priya].working_on == current
+    assert response.context["working"] == 1

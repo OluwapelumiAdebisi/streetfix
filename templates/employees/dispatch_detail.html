@@ -1,0 +1,169 @@
+{# djlint:off H021 #}
+{% extends "employees/manager_base.html" %}
+
+{% load fieldops %}
+
+{% block title %}Job #{{ work_item.pk }}{% endblock %}
+
+{% block heading %}
+  <div class="small muted" style="margin-bottom:6px">
+    <a href="{% url 'employees:dispatch' %}">Dispatch</a> / #{{ work_item.pk }}
+  </div>
+  <h1>#{{ work_item.pk }} · {{ work_item.issue_type }}</h1>
+  <div class="meta">
+    {% prio work_item.priority %} {% status work_item %}
+    <span class="muted small">{{ work_item.issue_type.department }}</span>
+  </div>
+{% endblock heading %}
+
+{% block manager_content %}
+  <div class="grid g-side">
+    <div class="col">
+      <section class="card">
+        <div class="facts">
+          <div>
+            <span class="label">Case officer</span>
+            {% for row in current %}
+              {% if row.is_case_officer %}<b>{{ row.employee }}</b>{% endif %}
+            {% endfor %}
+            {% if not has_case_officer %}<b class="muted">Unassigned</b>{% endif %}
+          </div>
+          <div>
+            <span class="label">Support</span>
+            {% for row in current %}
+              {% if not row.is_case_officer %}<b>{{ row.employee }}</b>{% if not forloop.last %}, {% endif %}{% endif %}
+            {% endfor %}
+            {% if not support_count %}<b class="muted">None</b>{% endif %}
+          </div>
+          <div>
+            <span class="label">Urgency</span><b>{{ work_item.urgency }}</b>
+          </div>
+          <div>
+            <span class="label">Reported</span><b>{{ work_item.created_at|date:"d M H:i" }}</b>
+            <div class="small muted">{{ work_item.created_at|timesince }} ago</div>
+          </div>
+        </div>
+        <div class="card-b">
+          <dl class="kv">
+            <dt>Issue type</dt>
+            <dd>
+              {{ work_item.issue_type }} <span class="muted small">· {{ work_item.issue_type.department }}</span>
+            </dd>
+            <dt>Location</dt>
+            <dd>
+              {{ work_item.latitude }}, {{ work_item.longitude }}
+            </dd>
+          </dl>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2 class="grow">Assignment history</h2>
+        </div>
+        <div class="card-b">
+          <div class="timeline small">
+            {% for row in history %}
+              <div>
+                <b>{{ row.employee }}</b>
+                <span class="chip">{% if row.is_case_officer %}case officer{% else %}support{% endif %}</span>
+                <span class="when">
+                  {{ row.assigned_at|date:"d M H:i" }} –
+                  {% if row.unassigned_at %}
+                    {{ row.unassigned_at|date:"d M H:i" }}
+                  {% else %}
+                    now
+                  {% endif %}
+                  {% if row.assigned_by %}· by {{ row.assigned_by }}{% endif %}
+                </span>
+                {% if row.reason %}<div class="muted">{{ row.reason }}</div>{% endif %}
+              </div>
+            {% empty %}
+              <div class="muted">Nobody has been assigned yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">Manage job</h2>
+      </div>
+      {% if can_assign %}
+        <details class="action-group" open>
+          <summary>
+            Assign someone <span class="desc">
+            {% if has_case_officer %}
+              Change case officer or add support
+            {% else %}
+              Unassigned
+            {% endif %}
+            </span>
+          </summary>
+          <div class="body">
+            <form method="post">
+              {% csrf_token %}
+              {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+              <div class="field">
+                <label for="{{ form.employee.id_for_label }}">Employee</label>
+                <select
+                  id="{{ form.employee.id_for_label }}"
+                  name="{{ form.employee.html_name }}"
+                >
+                  {% for value, label in form.employee.field.choices %}
+                    <option
+                      value="{{ value }}"
+                      {% if form.employee.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}
+                    >{{ label }}</option>
+                  {% endfor %}
+                </select>
+                {% for error in form.employee.errors %}<span class="help lvl-emergency">{{ error }}</span>{% endfor %}
+              </div>
+              <div class="field">
+                <span class="label">Role</span>
+                <div class="checks">
+                  {% for radio in form.role %}<label>{{ radio.tag }} {{ radio.choice_label }}</label>{% endfor %}
+                </div>
+                <span class="help">A new case officer replaces the current one. Support is added alongside.</span>
+              </div>
+              <div class="form-row">
+                <input
+                  name="{{ form.reason.html_name }}"
+                  placeholder="Reason (optional), e.g. Priya off sick"
+                  value="{{ form.reason.value|default_if_none:'' }}"
+                >
+                <button class="btn sm primary" type="submit">Assign</button>
+              </div>
+            </form>
+          </div>
+        </details>
+        {% for row in current %}
+          <details class="action-group">
+            <summary>
+              Remove {{ row.employee }} <span class="desc">
+              {% if row.is_case_officer %}
+                Case officer
+              {% else %}
+                Support
+              {% endif %}
+              </span>
+            </summary>
+            <div class="body">
+              <form class="form-row" method="post">
+                {% csrf_token %}
+                <input name="assignment" type="hidden" value="{{ row.pk }}">
+                <input name="reason" placeholder="Reason (optional)">
+                <button class="btn sm" name="remove" type="submit">Remove</button>
+              </form>
+            </div>
+          </details>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <b>Not triaged yet</b>This job needs triaging before it can be assigned.
+        </div>
+      {% endif %}
+    </section>
+  </div>
+{% endblock manager_content %}

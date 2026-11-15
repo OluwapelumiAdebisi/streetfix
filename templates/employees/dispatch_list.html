@@ -1,0 +1,44 @@
+{% extends "employees/manager_base.html" %}
+
+{% block title %}Dispatch{% endblock %}
+
+{% block heading %}
+  <h1>Dispatch</h1>
+  <p class="sub">Triaged work for {{ department }}, most pressing first. Give each job a case officer, and add support where a crew is needed.</p>
+{% endblock heading %}
+
+{% block manager_content %}
+  <section class="card">
+    <div class="card-h">
+      <h2 class="grow">Needs a case officer</h2>
+      {% if unassigned %}
+        <span class="count">{{ unassigned|length }}</span>
+      {% else %}
+        <span class="chip ok">All clear</span>
+      {% endif %}
+    </div>
+    {% if unassigned %}
+      {% include "employees/includes/dispatch_table.html" with items=unassigned show_officer=False %}
+
+    {% else %}
+      <div class="empty">
+        <b>Every triaged job has a case officer</b>Nothing is waiting for dispatch.
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-h">
+      <h2 class="grow">Assigned</h2>
+      <span class="hint">{{ assigned|length }} job{{ assigned|length|pluralize }}</span>
+    </div>
+    {% if assigned %}
+      {% include "employees/includes/dispatch_table.html" with items=assigned show_officer=True %}
+
+    {% else %}
+      <div class="empty">
+        <b>No assigned work yet</b>Jobs appear here once they have a case officer.
+      </div>
+    {% endif %}
+  </section>
+{% endblock manager_content %}

@@ -1,0 +1,54 @@
+{# djlint:off H021 #}
+{% load fieldops %}
+
+<div class="table-wrap">
+  <table>
+    <tr>
+      <th>Job</th>
+      <th>Issue type</th>
+      <th>Urgency</th>
+      <th>Status</th>
+      {% if show_officer %}<th>Case officer</th>{% endif %}
+      <th>Waiting</th>
+      <th></th>
+    </tr>
+    {% for item in items %}
+      <tr>
+        <td class="nowrap">
+          <a href="{% url 'employees:dispatch_detail' item.pk %}"><b>#{{ item.pk }}</b></a> {% prio item.priority %}
+        </td>
+        <td>{{ item.issue_type }}</td>
+        <td class="small">
+          {% if item.urgency.code == "EMERGENCY" %}
+            <b class="lvl-emergency">{{ item.urgency }}</b>
+          {% else %}
+            {{ item.urgency }}
+          {% endif %}
+        </td>
+        <td>{% status item %}</td>
+        {% if show_officer %}
+          <td>
+            <div class="row" style="flex-wrap:nowrap">
+              <span class="avatar sm">{{ item.case_officer.name|slice:":1" }}</span>
+              <b>{{ item.case_officer }}</b>
+            </div>
+          </td>
+        {% endif %}
+        <td class="small muted nowrap">{{ item.created_at|timesince }}</td>
+        <td class="nowrap">
+          <a
+            class="btn sm{% if not show_officer %}
+                     primary{% endif %}"
+            href="{% url 'employees:dispatch_detail' item.pk %}"
+          >
+            {% if show_officer %}
+              Manage
+            {% else %}
+              Assign
+            {% endif %}
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
