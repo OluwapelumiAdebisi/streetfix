@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import resolve, reverse
 from django.utils import timezone
@@ -102,12 +103,18 @@ def test_dashboard_requires_sign_in(client: Client) -> None:
 def test_dashboard_is_for_managers_only(
     client: Client, make_employee: MakeEmployee
 ) -> None:
-    """Employees who cannot manage work are refused."""
+    """Officers are sent to their jobs; other accounts are refused."""
     client.force_login(make_employee("priya").user)
 
     response = client.get(reverse("employees:dashboard"))
 
-    assert response.status_code == 403
+    assert response.status_code == 302
+    assert response.headers["Location"] == reverse("employees:my_jobs")
+
+    client.force_login(
+        User.objects.create_user(username="public", email="public@example.com")
+    )
+    assert client.get(reverse("employees:dashboard")).status_code == 403
 
 
 def test_job_flow_counts_each_stage_for_the_department(
