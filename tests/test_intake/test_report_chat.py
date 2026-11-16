@@ -89,6 +89,15 @@ def test_report_chat_uses_site_layout_and_theme(client: Client) -> None:
     assert content.index("css/theme") < content.index("css/report-chat")
 
 
+def test_report_chat_navbar_shows_only_the_brand(client: Client) -> None:
+    """Residents see the site brand without the staff navigation links."""
+    content = client.get(reverse("intake:report_chat")).content.decode()
+
+    assert "uk-logo" in content
+    assert '<a href="/employees/">Employees</a>' not in content
+    assert '<a href="/analytics/">Analytics</a>' not in content
+
+
 def test_staff_panel_hidden_from_public(client: Client) -> None:
     """The triage panel is not shown to residents."""
     response = client.get(reverse("intake:report_chat"))
