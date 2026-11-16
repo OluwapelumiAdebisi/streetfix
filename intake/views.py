@@ -8,13 +8,20 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, JsonResponse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import TemplateView
 from global_login_required import login_not_required
 
-from .chat import parse_report, reference_for, submit_report, work_item_for_reference
+from .chat import (
+    nearby_open_work,
+    parse_report,
+    reference_for,
+    submit_report,
+    work_item_for_reference,
+)
 
 
 @method_decorator(login_not_required, name="dispatch")
@@ -80,5 +87,33 @@ class ReportStatusView(View):
                 "reference": reference_for(work_item),
                 "status": work_item.status.label,
                 "issue": str(work_item.issue_type),
+            }
+        )
+
+
+@method_decorator(login_not_required, name="dispatch")
+class NearbyReportView(View):
+    """Find an open job that may be the problem a resident is reporting.
+
+    Used by the chat to ask "Is this the same problem?" before a duplicate
+    work item is created. Returns only the public reference and its age.
+    """
+
+    http_method_names = ["get"]
+
+    def get(self, request: HttpRequest) -> JsonResponse:
+        """Return the nearest matching open work item, or no match."""
+        work_item = nearby_open_work(
+            request.GET.get("category", ""), request.GET.get("postcode", "")
+        )
+        if work_item is None:
+            return JsonResponse({"match": None})
+        return JsonResponse(
+            {
+                "match": {
+                    "reference": reference_for(work_item),
+                    "days_ago": (timezone.now() - work_item.created_at).days,
+                    "status": work_item.status.label,
+                }
             }
         )

@@ -9,6 +9,7 @@ from django.urls import path
 from .views import (
     CreateReportView,
     FormIntakeView,
+    NearbyReportView,
     ReportChatView,
     ReportStatusView,
 )
@@ -19,6 +20,7 @@ urlpatterns = [
     path("", FormIntakeView.as_view(), name="form_intake"),
     path("report/", ReportChatView.as_view(), name="report_chat"),
     path("api/cases/", CreateReportView.as_view(), name="create_report"),
+    path("api/cases/nearby/", NearbyReportView.as_view(), name="nearby_report"),
     path(
         "api/cases/<str:reference>/",
         ReportStatusView.as_view(),

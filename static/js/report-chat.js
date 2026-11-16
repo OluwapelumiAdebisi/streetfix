@@ -66,7 +66,7 @@ const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 let C,current,editing,reference;
 function fresh(){C={category:null,categorySource:null,subKey:null,subissue:"",subRaise:null,otherText:"",description:"",postcode:"",outward:"",postcodeKnown:null,landmark:"",
   photo:null,photoName:"",urgency:undefined,wantsUpdates:null,contactMethod:"",email:"",phone:"",name:"",language:"",languageLabel:"",
-  duplicateOf:null,possibleDuplicate:null,wantsReference:null,submittedAt:null};editing=false;reference=null;lang="en";applyLang();}
+  duplicateOf:null,possibleDuplicate:null,nearby:null,wantsReference:null,submittedAt:null};editing=false;reference=null;lang="en";applyLang();}
 
 function scroll(){log.scrollTop=log.scrollHeight}
 function addRow(cls,html){const r=document.createElement("div");r.className="rc-row rc-"+cls;r.innerHTML=html;log.appendChild(r);scroll();return r}
@@ -116,8 +116,19 @@ function triage(){
   const ackDue=s.ackH?new Date(now.getTime()+s.ackH*3600e3):addWorking(now,s.ackD);
   return {category:C.category,teamKey:cat.team,priority:pr,reasons,ackDue,resolveDue:addWorking(now,s.resD)};
 }
-/* Sample cases are only used in demo mode. TODO: ask the server for open work nearby. */
-function findDup(){return API_BASE===null&&C.outward?EXISTING.find(e=>e.cat===C.category&&e.out===C.outward):null}
+
+/* Is there an open job that may be the same problem? Demo mode uses sample cases;
+   connected mode asks the server for open work of the same type nearby. */
+async function checkDuplicate(){
+  if(!C.outward)return null;
+  if(API_BASE===null){const e=EXISTING.find(x=>x.cat===C.category&&x.out===C.outward);return e?{ref:e.ref}:null}
+  try{
+    const q=new URLSearchParams({category:C.category,postcode:C.postcode});
+    const r=await fetch(API_BASE+"/api/cases/nearby/?"+q,{credentials:"same-origin"});
+    if(!r.ok)return null;
+    const j=await r.json();return j.match?{ref:j.match.reference}:null;
+  }catch(e){return null}
+}
 /* Priority as a UIkit label: danger/warning colours come from the theme. */
 const PRIORITY_LABEL={Urgent:"uk-label-danger",High:"uk-label-warning",Medium:"",Low:"rc-label-low"};
 const priorityLabel=(pr,text)=>`<span class="uk-label ${PRIORITY_LABEL[pr]}">${esc(text)}</span>`;
@@ -171,10 +182,10 @@ const steps={
   urgency(){
     setInput("ph_choose");
     bot(p(t("q_urg")),{chips:URG.map(u=>({label:t(u.k),hint:u.h?t(u.h):"",on:()=>{user(t(u.k));C.urgency=u.id;
-      if(!editing&&findDup())go("dup");else next("updates")}}))});
+      if(editing){next("updates");return}checkDuplicate().then(d=>{C.nearby=d;if(d)go("dup");else next("updates")})}}))});
   },
   dup(){
-    const d=findDup();if(!d){next("updates");return}
+    const d=C.nearby;if(!d){next("updates");return}
     setInput("ph_choose");
     bot(p(t("dup_q",{area:C.outward,ref:d.ref})),{chips:[
       {label:t("yes_same"),on:()=>{user(t("yes_same"));C.duplicateOf=d.ref;C.possibleDuplicate=null;bot(p(t("dup_linked")));next("updates")}},

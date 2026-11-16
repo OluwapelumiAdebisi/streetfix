@@ -3,14 +3,18 @@
 import base64
 import json
 from collections.abc import Callable
+from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from unittest import mock
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from pytest_django.fixtures import Settings
 
 from employees.organisation_models import Department, IssueType
@@ -357,6 +361,7 @@ def test_report_status_unknown_reference(client: Client) -> None:
 def test_locate_uses_postcodes_io(settings: Settings) -> None:
     """Postcodes are turned into map coordinates."""
     settings.POSTCODE_LOOKUP = True
+    cache.clear()
     body = json.dumps({"result": {"latitude": 52.43, "longitude": -1.93}}).encode()
     response = mock.MagicMock()
     response.__enter__.return_value.read.return_value = body
@@ -373,3 +378,120 @@ def test_locate_skips_invalid_postcodes(settings: Settings) -> None:
     with mock.patch("intake.chat.urllib.request.urlopen") as call:
         assert locate("not a postcode") is None
     call.assert_not_called()
+
+
+NEAR_POTHOLE = (Decimal("51.500900"), Decimal("-0.120000"))  # ~100 m north
+FAR_AWAY = (Decimal("51.520000"), Decimal("-0.120000"))  # ~2 km north
+
+
+def nearby(client: Client, category: str = "pothole") -> Any:
+    """Ask the nearby endpoint about a postcode."""
+    return client.get(
+        reverse("intake:nearby_report"),
+        {"category": category, "postcode": "SW1A 1AA"},
+    ).json()
+
+
+def test_nearby_finds_open_job_of_same_type(
+    client: Client, make_work_item: Callable[..., WorkItem]
+) -> None:
+    """An open pothole about 100 m away is offered as a possible duplicate."""
+    existing = make_work_item()  # pothole at 51.5, -0.12
+
+    with mock.patch("intake.chat.locate", return_value=NEAR_POTHOLE):
+        result = nearby(client)
+
+    assert result["match"]["reference"] == reference_for(existing)
+    assert result["match"]["days_ago"] == 0
+
+
+def test_nearby_ignores_far_away_jobs(
+    client: Client, make_work_item: Callable[..., WorkItem]
+) -> None:
+    """Jobs further than the radius are not offered."""
+    make_work_item()
+
+    with mock.patch("intake.chat.locate", return_value=FAR_AWAY):
+        assert nearby(client) == {"match": None}
+
+
+def test_nearby_ignores_other_issue_types(
+    client: Client, make_work_item: Callable[..., WorkItem]
+) -> None:
+    """A nearby graffiti job is not a duplicate of a pothole."""
+    make_work_item(issue_code="GRAFFITI")
+
+    with mock.patch("intake.chat.locate", return_value=NEAR_POTHOLE):
+        assert nearby(client) == {"match": None}
+
+
+@pytest.mark.parametrize("status", ["RESOLVED", "CLOSED", "CANCELLED"])
+def test_nearby_ignores_finished_jobs(
+    client: Client, make_work_item: Callable[..., WorkItem], status: str
+) -> None:
+    """Finished jobs are not offered, so a new problem gets its own job."""
+    existing = make_work_item()
+    WorkItem.objects.filter(pk=existing.pk).update(
+        status=WorkItemStatus.objects.get(code=status)
+    )
+
+    with mock.patch("intake.chat.locate", return_value=NEAR_POTHOLE):
+        assert nearby(client) == {"match": None}
+
+
+def test_nearby_ignores_old_jobs(
+    client: Client, make_work_item: Callable[..., WorkItem]
+) -> None:
+    """Jobs older than the window are not offered."""
+    existing = make_work_item()
+    WorkItem.objects.filter(pk=existing.pk).update(
+        created_at=timezone.now() - timedelta(days=31)
+    )
+
+    with mock.patch("intake.chat.locate", return_value=NEAR_POTHOLE):
+        assert nearby(client) == {"match": None}
+
+
+def test_nearby_ignores_jobs_with_unknown_location(
+    client: Client, make_work_item: Callable[..., WorkItem], settings: Settings
+) -> None:
+    """Jobs pinned at the depot (no real location) never match."""
+    existing = make_work_item()
+    depot = settings.FIELD_DEPOT
+    WorkItem.objects.filter(pk=existing.pk).update(
+        latitude=Decimal(str(depot["lat"])), longitude=Decimal(str(depot["lng"]))
+    )
+    at_depot = (Decimal(str(depot["lat"])), Decimal(str(depot["lng"])))
+
+    with mock.patch("intake.chat.locate", return_value=at_depot):
+        assert nearby(client) == {"match": None}
+
+
+def test_nearby_without_coordinates_has_no_match(client: Client) -> None:
+    """When the postcode can't be placed, the chat just carries on."""
+    with mock.patch("intake.chat.locate", return_value=None):
+        assert nearby(client) == {"match": None}
+
+
+def test_nearby_unknown_category_has_no_match(client: Client) -> None:
+    """Unknown categories are not looked up."""
+    with mock.patch("intake.chat.locate") as locate_mock:
+        assert nearby(client, category="nonsense") == {"match": None}
+    locate_mock.assert_not_called()
+
+
+def test_postcode_lookups_are_cached(settings: Settings) -> None:
+    """The same postcode is only looked up once."""
+    settings.POSTCODE_LOOKUP = True
+    body = json.dumps({"result": {"latitude": 52.43, "longitude": -1.93}}).encode()
+    response = mock.MagicMock()
+    response.__enter__.return_value.read.return_value = body
+    cache.clear()
+    with mock.patch(
+        "intake.chat.urllib.request.urlopen", return_value=response
+    ) as call:
+        first = locate("B29 1AA")
+        second = locate("b291aa")
+
+    assert first == second
+    assert call.call_count == 1

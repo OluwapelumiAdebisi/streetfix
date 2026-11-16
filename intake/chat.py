@@ -15,17 +15,21 @@ import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
 import cloudinary.exceptions
 import cloudinary.uploader
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.utils import timezone
 
+from employees.geo import distance_km
 from employees.organisation_models import Department, IssueType
 from employees.work_models import Priority, Urgency, WorkItem, WorkItemStatus
 from intake.models import (
@@ -41,6 +45,13 @@ REFERENCE_PREFIX = "SF-"
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
 POSTCODES_IO_URL = "https://api.postcodes.io/postcodes/"
 UK_POSTCODE = re.compile(r"^([A-Z]{1,2}\d[A-Z\d]?) ?(\d[A-Z]{2})$")
+
+# A report counts as a possible duplicate of an open job of the same issue
+# type this close by, reported this recently.
+DUPLICATE_RADIUS_KM = 0.2
+DUPLICATE_WINDOW_DAYS = 30
+FINISHED_STATUSES = ("RESOLVED", "CLOSED", "CANCELLED")
+POSTCODE_CACHE_SECONDS = 60 * 60 * 24
 
 # Chat category -> (department, issue type code, issue type name).
 # An existing issue type with the same code is used first, so issue types the
@@ -191,17 +202,63 @@ def locate(postcode: str) -> tuple[Decimal, Decimal] | None:
     match = UK_POSTCODE.match(postcode.replace(" ", "").upper())
     if not match or not settings.POSTCODE_LOOKUP:
         return None
-    url = POSTCODES_IO_URL + urllib.parse.quote(match.group(1) + match.group(2))
+    postcode = match.group(1) + match.group(2)
+    cache_key = f"intake:postcode:{postcode}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Decimal(cached[0]), Decimal(cached[1])
+    url = POSTCODES_IO_URL + urllib.parse.quote(postcode)
     try:
         with urllib.request.urlopen(url, timeout=4) as response:  # noqa: S310 (fixed https URL)
             result = json.load(response)["result"]
-        return (
+        coordinates = (
             Decimal(str(result["latitude"])).quantize(Decimal("0.000001")),
             Decimal(str(result["longitude"])).quantize(Decimal("0.000001")),
         )
     except OSError, ValueError, KeyError, TypeError:
         logger.warning("Postcode lookup failed for %s", postcode)
         return None
+    cache.set(
+        cache_key, (str(coordinates[0]), str(coordinates[1])), POSTCODE_CACHE_SECONDS
+    )
+    return coordinates
+
+
+def nearby_open_work(category: str, postcode: str) -> WorkItem | None:
+    """Return the closest open work item that may be the same problem.
+
+    Matches the same issue type within ``DUPLICATE_RADIUS_KM`` of the
+    postcode, reported in the last ``DUPLICATE_WINDOW_DAYS``. Work items
+    pinned at the depot (location unknown) are never matched, because their
+    pin is not where the problem is.
+    """
+    if category not in ISSUE_TYPES:
+        return None
+    coordinates = locate(postcode)
+    if coordinates is None:
+        return None
+    lat, lng = float(coordinates[0]), float(coordinates[1])
+    depot = settings.FIELD_DEPOT
+    margin = Decimal("0.005")  # about 500 m: cheap pre-filter before exact distance
+    candidates = (
+        WorkItem.objects.filter(
+            issue_type__code=ISSUE_TYPES[category][1],
+            created_at__gte=timezone.now() - timedelta(days=DUPLICATE_WINDOW_DAYS),
+            latitude__range=(coordinates[0] - margin, coordinates[0] + margin),
+            longitude__range=(coordinates[1] - margin, coordinates[1] + margin),
+        )
+        .exclude(status__code__in=FINISHED_STATUSES)
+        .exclude(
+            latitude=Decimal(str(depot["lat"])).quantize(Decimal("0.000001")),
+            longitude=Decimal(str(depot["lng"])).quantize(Decimal("0.000001")),
+        )
+    )
+    best: tuple[float, WorkItem] | None = None
+    for item in candidates:
+        distance = distance_km(lat, lng, float(item.latitude), float(item.longitude))
+        if distance <= DUPLICATE_RADIUS_KM and (best is None or distance < best[0]):
+            best = (distance, item)
+    return best[1] if best else None
 
 
 def _decode_photo(data_url: str) -> tuple[bytes, str] | None:
@@ -274,7 +331,7 @@ def submit_report(report: ChatReport) -> tuple[WorkItem, ReportSubmission]:
     work_item = (
         work_item_for_reference(report.duplicate_of) if report.duplicate_of else None
     )
-    if work_item is not None and work_item.status.code in {"CLOSED", "CANCELLED"}:
+    if work_item is not None and work_item.status.code in FINISHED_STATUSES:
         work_item = None
 
     approximate = False
