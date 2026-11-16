@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
+from . import approval
 from .dispatch import NOT_YET_TRIAGED, assign_work, dispatchable_work, remove_from_work
 from .forms import AssignWorkForm, RemoveFromWorkForm
 from .organisation_models import Employee
@@ -154,11 +155,18 @@ class DispatchDetailView(ManagerMixin, View):
         )
 
     def render(
-        self, work_item: WorkItem, form: AssignWorkForm | None = None
+        self,
+        work_item: WorkItem,
+        form: AssignWorkForm | None = None,
+        review_error: str = "",
     ) -> HttpResponse:
         """Show the work item, its team, the assign form and the history."""
         assignments = work_item.assignments.select_related("employee", "assigned_by")
         current = [row for row in assignments if row.is_open]
+        report = approval.latest_report(work_item)
+        awaiting_approval = (
+            report is not None and work_item.status.code == approval.AWAITING_APPROVAL
+        )
         return render(
             self.request,
             self.template_name,
@@ -171,6 +179,9 @@ class DispatchDetailView(ManagerMixin, View):
                 "history": list(assignments.order_by("-assigned_at", "-pk")),
                 "form": form or AssignWorkForm(work_item=work_item),
                 "can_assign": work_item.status.code not in NOT_YET_TRIAGED,
+                "report": report,
+                "awaiting_approval": awaiting_approval,
+                "review_error": review_error,
             },
         )
 
@@ -183,6 +194,8 @@ class DispatchDetailView(ManagerMixin, View):
         work_item = self.work_item(pk)
         if "remove" in request.POST:
             return self.remove(work_item)
+        if "approve" in request.POST or "send_back" in request.POST:
+            return self.review(work_item)
 
         form = AssignWorkForm(request.POST, work_item=work_item)
         if not form.is_valid():
@@ -219,4 +232,18 @@ class DispatchDetailView(ManagerMixin, View):
                 reason=form.cleaned_data["reason"],
             )
             messages.success(self.request, f"{assignment.employee} removed from job.")
+        return redirect("employees:dispatch_detail", pk=work_item.pk)
+
+    def review(self, work_item: WorkItem) -> HttpResponse:
+        """Approve the officer's report and close the job, or send it back."""
+        note = self.request.POST.get("note", "")
+        try:
+            if "approve" in self.request.POST:
+                approval.approve(work_item, self.manager(), note=note)
+                messages.success(self.request, "Job approved and closed.")
+                return redirect("employees:dispatch")
+            approval.send_back(work_item, self.manager(), note=note)
+        except ValidationError as error:
+            return self.render(work_item, review_error=" ".join(error.messages))
+        messages.success(self.request, "Report sent back to the case officer.")
         return redirect("employees:dispatch_detail", pk=work_item.pk)
