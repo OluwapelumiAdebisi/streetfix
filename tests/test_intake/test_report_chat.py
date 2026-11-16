@@ -78,6 +78,17 @@ def test_report_chat_page_is_public(client: Client) -> None:
     assert "csrftoken" in response.cookies
 
 
+def test_report_chat_uses_site_layout_and_theme(client: Client) -> None:
+    """The chat extends the site template, so it gets UIkit and the theme."""
+    response = client.get(reverse("intake:report_chat"))
+    content = response.content.decode()
+
+    assert any(template.name == "base.html" for template in response.templates)
+    assert "uikit/uikit.min" in content
+    assert "css/theme" in content
+    assert content.index("css/theme") < content.index("css/report-chat")
+
+
 def test_staff_panel_hidden_from_public(client: Client) -> None:
     """The triage panel is not shown to residents."""
     response = client.get(reverse("intake:report_chat"))

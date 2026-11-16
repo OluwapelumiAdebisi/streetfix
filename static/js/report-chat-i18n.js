@@ -354,3 +354,9 @@ Object.assign(L.ur,{err_send:"ہم آپ کی رپورٹ نہیں بھیج سکے
 Object.assign(L.pa,{err_send:"ਅਸੀਂ ਤੁਹਾਡੀ ਰਿਪੋਰਟ ਨਹੀਂ ਭੇਜ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਕਨੈਕਸ਼ਨ ਜਾਂਚੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"});
 Object.assign(L.ar,{err_send:"تعذّر إرسال بلاغك. يُرجى التحقق من اتصالك والمحاولة مرة أخرى."});
 Object.assign(L.ro,{err_send:"Nu am putut trimite raportul. Verificați conexiunea și încercați din nou."});
+Object.assign(L.en,{title:"Report a problem"});
+Object.assign(L.pl,{title:"Zgłoś problem"});
+Object.assign(L.ur,{title:"مسئلے کی اطلاع دیں"});
+Object.assign(L.pa,{title:"ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰੋ"});
+Object.assign(L.ar,{title:"أبلغ عن مشكلة"});
+Object.assign(L.ro,{title:"Raportați o problemă"});
