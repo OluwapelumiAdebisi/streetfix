@@ -371,8 +371,18 @@ def submit_report(report: ChatReport) -> tuple[WorkItem, ReportSubmission]:
 
     photo = _decode_photo(report.photo) if report.photo else None
     if photo is not None:
-        ReportSubmissionPhoto.objects.create(
-            report_submission=submission,
-            image_url=_store_photo(work_item.pk, *photo),
-        )
+        # A photo that can't be stored (for example on a read-only host
+        # without Cloudinary) must never lose the report itself.
+        try:
+            image_url = _store_photo(work_item.pk, *photo)
+        except OSError, ValidationError:
+            logger.exception("Could not store the photo for work item %s", work_item.pk)
+            submission.description += (
+                "\nThe reporter added a photo, but it could not be saved."
+            )
+            submission.save(update_fields=("description",))
+        else:
+            ReportSubmissionPhoto.objects.create(
+                report_submission=submission, image_url=image_url
+            )
     return work_item, submission

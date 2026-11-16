@@ -276,6 +276,23 @@ def test_photo_is_stored(
     assert len(list(tmp_path.rglob("*.png"))) == 1
 
 
+def test_report_kept_when_photo_cannot_be_stored(
+    post_report: Callable[[dict[str, Any]], Any],
+) -> None:
+    """A storage failure keeps the report and tells the officer."""
+    with mock.patch(
+        "intake.chat.default_storage.save", side_effect=OSError("read-only")
+    ):
+        response = post_report(
+            chat_report(case={"photo": f"data:image/png;base64,{PNG_1PX}"})
+        )
+
+    submission = ReportSubmission.objects.get()
+    assert response.status_code == 201
+    assert not submission.photos.exists()
+    assert "could not be saved" in submission.description
+
+
 def test_oversized_photo_is_rejected(
     post_report: Callable[[dict[str, Any]], Any],
 ) -> None:
