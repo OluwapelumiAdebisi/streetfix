@@ -1,7 +1,7 @@
 """Views for the intake application.
 
-This module contains views for handling form intake processes
-and related functionality, including the public report chat.
+The public report chat is the site's home page; the JSON views behind it
+create reports, look up their status and find possible duplicates.
 """
 
 from typing import Any
@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.generic import TemplateView
+from django.views.generic import RedirectView, TemplateView
 from global_login_required import login_not_required
 
 from .chat import (
@@ -25,20 +25,9 @@ from .chat import (
 
 
 @method_decorator(login_not_required, name="dispatch")
-class FormIntakeView(TemplateView):
-    """View for the form intake landing page.
-
-    Displays the main intake form or dashboard for submitting
-    and managing form submissions.
-    """
-
-    template_name = "intake/form_intake.html"
-
-
-@method_decorator(login_not_required, name="dispatch")
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class ReportChatView(TemplateView):
-    """The public chat that guides a resident through reporting a problem.
+    """The home page: a chat that guides a resident through reporting a problem.
 
     Signed-in staff also see the triage panel that explains the suggested
     category, priority and team.
@@ -51,6 +40,13 @@ class ReportChatView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["show_staff_panel"] = self.request.user.is_staff
         return context
+
+
+@method_decorator(login_not_required, name="dispatch")
+class OldReportLinkView(RedirectView):
+    """Send links to /report/ (where the chat used to be) to the home page."""
+
+    pattern_name = "intake:form_intake"
 
 
 @method_decorator(login_not_required, name="dispatch")

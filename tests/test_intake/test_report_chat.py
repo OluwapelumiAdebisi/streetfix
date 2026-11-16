@@ -75,7 +75,7 @@ def post_report(client: Client) -> Callable[[dict[str, Any]], Any]:
 
 def test_report_chat_page_is_public(client: Client) -> None:
     """Residents can open the chat without signing in."""
-    response = client.get(reverse("intake:report_chat"))
+    response = client.get(reverse("intake:form_intake"))
 
     assert response.status_code == 200
     assert "js/report-chat." in response.content.decode()
@@ -84,7 +84,7 @@ def test_report_chat_page_is_public(client: Client) -> None:
 
 def test_report_chat_uses_site_layout_and_theme(client: Client) -> None:
     """The chat extends the site template, so it gets UIkit and the theme."""
-    response = client.get(reverse("intake:report_chat"))
+    response = client.get(reverse("intake:form_intake"))
     content = response.content.decode()
 
     assert any(template.name == "base.html" for template in response.templates)
@@ -95,7 +95,7 @@ def test_report_chat_uses_site_layout_and_theme(client: Client) -> None:
 
 def test_report_chat_navbar_shows_only_the_brand(client: Client) -> None:
     """Residents see the site brand without the staff navigation links."""
-    content = client.get(reverse("intake:report_chat")).content.decode()
+    content = client.get(reverse("intake:form_intake")).content.decode()
 
     assert "uk-logo" in content
     assert '<a href="/employees/">Employees</a>' not in content
@@ -104,7 +104,7 @@ def test_report_chat_navbar_shows_only_the_brand(client: Client) -> None:
 
 def test_staff_panel_hidden_from_public(client: Client) -> None:
     """The triage panel is not shown to residents."""
-    response = client.get(reverse("intake:report_chat"))
+    response = client.get(reverse("intake:form_intake"))
 
     assert 'id="casePanel"' not in response.content.decode()
 
@@ -116,16 +116,17 @@ def test_staff_panel_shown_to_staff(client: Client) -> None:
     )
     client.force_login(user)
 
-    response = client.get(reverse("intake:report_chat"))
+    response = client.get(reverse("intake:form_intake"))
 
     assert 'id="casePanel"' in response.content.decode()
 
 
-def test_landing_page_links_to_chat(client: Client) -> None:
-    """The landing page's submit button opens the chat."""
-    response = client.get(reverse("intake:form_intake"))
+def test_old_report_link_redirects_to_home(client: Client) -> None:
+    """Links to /report/ from before the chat became the home page still work."""
+    response = client.get("/report/")
 
-    assert reverse("intake:report_chat") in response.content.decode()
+    assert response.status_code == 302
+    assert response.headers["Location"] == reverse("intake:form_intake")
 
 
 def test_report_creates_submitted_work_item(
@@ -338,7 +339,7 @@ def test_create_report_requires_csrf_token() -> None:
         data=json.dumps(chat_report()),
         content_type="application/json",
     )
-    client.get(reverse("intake:report_chat"))
+    client.get(reverse("intake:form_intake"))
     allowed = client.post(
         reverse("intake:create_report"),
         data=json.dumps(chat_report()),
