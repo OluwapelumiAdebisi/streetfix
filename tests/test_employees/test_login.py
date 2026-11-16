@@ -64,6 +64,67 @@ def test_allauth_uses_the_configured_default_redirect(
     assert response.headers["Location"] == reverse("employees:dashboard")
 
 
+def test_officers_land_on_their_jobs(
+    client: Client, make_employee: Callable[..., Employee]
+) -> None:
+    """An officer signing in goes to My jobs, not the manager overview."""
+    officer = make_employee("priya")
+    set_login_credentials(officer.user)
+
+    response = sign_in(client, officer.user)
+
+    assert response.headers["Location"] == reverse("employees:my_jobs")
+    assert client.get(response.headers["Location"]).status_code == 200
+
+
+def test_officers_following_the_employees_link_reach_their_jobs(
+    client: Client, make_employee: Callable[..., Employee]
+) -> None:
+    """Signing in from the Employees link takes an officer to My jobs."""
+    officer = make_employee("priya")
+    set_login_credentials(officer.user)
+    dashboard = reverse("employees:dashboard")
+
+    response = client.post(
+        reverse("account_login") + f"?next={dashboard}",
+        {"login": officer.user.email, "password": PASSWORD},
+        follow=True,
+    )
+
+    assert response.redirect_chain[-1][0] == reverse("employees:my_jobs")
+    assert response.status_code == 200
+
+
+def test_admins_who_are_not_employees_land_on_the_site_admin(
+    client: Client, django_user_model: type[User]
+) -> None:
+    """An administrator without an employee record goes to the site admin."""
+    admin = django_user_model.objects.create_superuser(
+        username="admin", email="admin@example.com"
+    )
+    set_login_credentials(admin)
+
+    response = sign_in(client, admin)
+
+    assert response.headers["Location"] == reverse("admin:index")
+
+
+def test_a_sign_in_link_keeps_its_destination(
+    client: Client, make_employee: Callable[..., Employee]
+) -> None:
+    """Following a link to a page and signing in still returns to that page."""
+    officer = make_employee("priya")
+    set_login_credentials(officer.user)
+    target = reverse("employees:my_map")
+
+    response = client.post(
+        reverse("account_login") + f"?next={target}",
+        {"login": officer.user.email, "password": PASSWORD},
+    )
+
+    assert response.headers["Location"] == target
+
+
 def test_wrong_password_is_refused(client: Client, manager: Employee) -> None:
     """A wrong password shows the error and does not sign in."""
     set_login_credentials(manager.user)

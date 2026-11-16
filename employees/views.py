@@ -8,9 +8,10 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth.models import AnonymousUser, User
 from django.contrib.auth.views import LoginView
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
@@ -31,6 +32,23 @@ from .overview import (
 from .work_models import WorkAssignment, WorkItem
 
 
+def home_url(user: User | AnonymousUser) -> str | None:
+    """Return where a user should land after signing in, if they have a home.
+
+    Managers go to the operations overview and officers to their jobs.
+    Administrators who are not employees go to the site admin. Anyone else
+    has no particular home, so callers use their own default.
+    """
+    is_employee = user.is_authenticated and Employee.objects.filter(user=user).exists()
+    if is_employee and user.has_perm("employees.add_workassignment"):
+        return reverse("employees:dashboard")
+    if is_employee:
+        return reverse("employees:my_jobs")
+    if user.is_staff:
+        return reverse("admin:index")
+    return None
+
+
 class SignInView(LoginView):
     """Sign employees in; managers land on the operations overview."""
 
@@ -39,12 +57,7 @@ class SignInView(LoginView):
 
     def get_default_redirect_url(self) -> str:
         """Send managers to the overview and officers to their jobs."""
-        user = self.request.user
-        if user.has_perm("employees.add_workassignment"):
-            return reverse("employees:dashboard")
-        if user.is_authenticated and Employee.objects.filter(user=user).exists():
-            return reverse("employees:my_jobs")
-        return reverse("intake:form_intake")
+        return home_url(self.request.user) or reverse("intake:form_intake")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """Use the site's branding name rather than the host name."""
@@ -87,6 +100,18 @@ class EmployeeDashboardView(ManagerMixin, TemplateView):
     """
 
     template_name = "employees/dashboard.html"
+
+    def handle_no_permission(self) -> HttpResponseRedirect:
+        """Send signed-in staff who are not managers to their own page.
+
+        /employees/ is where the site's Employees link and sign-in lead, so
+        officers arriving here are taken to their jobs instead of an error.
+        """
+        if self.request.user.is_authenticated:
+            home = home_url(self.request.user)
+            if home and home != self.request.path:
+                return redirect(home)
+        return super().handle_no_permission()
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """Gather the department's figures."""
