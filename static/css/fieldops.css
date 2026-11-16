@@ -305,3 +305,6 @@ pre{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--line
   .flow{grid-template-columns:repeat(2,1fr)}.flow a{border-bottom:1px solid var(--line)}.flow a:nth-child(3n){border-right:1px solid var(--line)}.flow a:nth-child(2n){border-right:0}
   .kv{grid-template-columns:1fr;gap:2px}.kv dd{margin-bottom:8px}
 }
+.report-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:14px}
+.report-photos a{display:flex;flex-direction:column;gap:4px;text-decoration:none!important}
+.report-photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--line)}

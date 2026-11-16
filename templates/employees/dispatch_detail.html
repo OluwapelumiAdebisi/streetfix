@@ -57,6 +57,84 @@
         </div>
       </section>
 
+      {% if report %}
+        <section id="visit-report" class="card">
+          <div class="card-h">
+            <h2 class="grow">Visit report</h2>
+            {% if awaiting_approval %}
+              <span class="chip warn">Awaiting your approval</span>
+            {% endif %}
+          </div>
+          <div class="card-b">
+            <dl class="kv">
+              <dt>Outcome</dt>
+              <dd>
+                <b>{{ report.get_outcome_display }}</b>
+              </dd>
+              <dt>Officer</dt>
+              <dd>
+                {{ report.employee }}
+              </dd>
+              <dt>On site</dt>
+              <dd>
+                {% if report.arrived_at %}
+                  {{ report.arrived_at|date:"d M H:i" }} –
+                {% endif %}
+                {{ report.submitted_at|date:"d M H:i" }}
+              </dd>
+              {% if report.findings %}
+                <dt>What they found</dt>
+                <dd>
+                  {{ report.findings|linebreaksbr }}
+                </dd>
+              {% endif %}
+              {% if report.work_done %}
+                <dt>Work done</dt>
+                <dd>
+                  {{ report.work_done|linebreaksbr }}
+                </dd>
+              {% endif %}
+              {% if report.materials %}
+                <dt>Materials</dt>
+                <dd>
+                  {{ report.materials|linebreaksbr }}
+                </dd>
+              {% endif %}
+              <dt>Further work</dt>
+              <dd>
+                {% if report.further_work_needed %}
+                  Needed
+                {% else %}
+                  None
+                {% endif %}
+              </dd>
+              {% if report.additional_notes %}
+                <dt>Notes</dt>
+                <dd>
+                  {{ report.additional_notes|linebreaksbr }}
+                </dd>
+              {% endif %}
+              {% if report.no_before_photo_reason %}
+                <dt>No before photo</dt>
+                <dd>
+                  {{ report.no_before_photo_reason }}
+                </dd>
+              {% endif %}
+            </dl>
+            {% if report.photos.all %}
+              <div class="report-photos">
+                {% for photo in report.photos.all %}
+                  <a href="{{ photo.image_url }}" rel="noopener" target="_blank">
+                    <img alt="{{ photo.get_tag_display }} photo" src="{{ photo.image_url }}">
+                    <span class="small muted">{{ photo.get_tag_display }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+
       <section class="card">
         <div class="card-h">
           <h2 class="grow">Assignment history</h2>
@@ -90,6 +168,32 @@
       <div class="card-h">
         <h2 class="grow">Manage job</h2>
       </div>
+      {% if awaiting_approval %}
+        <details class="action-group" open>
+          <summary>
+            Review visit report <span class="desc">Approve to close the job</span>
+          </summary>
+          <div class="body">
+            <form method="post">
+              {% csrf_token %}
+              {% if review_error %}<div class="msg error">{{ review_error }}</div>{% endif %}
+              <div class="field">
+                <label for="review-note">Note</label>
+                <input
+                  id="review-note"
+                  name="note"
+                  placeholder="Optional when approving, required when sending back"
+                >
+                <span class="help">Approving closes the job. Sending back reopens the report for the case officer.</span>
+              </div>
+              <div class="form-row">
+                <button class="btn sm primary" name="approve" type="submit">Approve and close</button>
+                <button class="btn sm" name="send_back" type="submit">Send back</button>
+              </div>
+            </form>
+          </div>
+        </details>
+      {% endif %}
       {% if can_assign %}
         <details class="action-group" open>
           <summary>
