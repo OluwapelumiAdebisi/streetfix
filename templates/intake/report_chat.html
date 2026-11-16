@@ -1,0 +1,127 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+      name="viewport"
+    >
+    <meta
+      content="Report a problem on a street or public space."
+      name="description"
+    >
+    <title>Report a problem | {{ site_name|default:"Street Fix" }}</title>
+    {% if favicon_url %}
+      <link href="{{ favicon_url }}" rel="icon">
+    {% endif %}
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Overpass:wght@600;800&family=Overpass+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    >
+    <link href="{% static 'css/report-chat.css' %}" rel="stylesheet">
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="brand">
+          <h1>{{ site_name|default:"Street Fix" }}</h1>
+          <span id="sub">Report a problem on a street or public space</span>
+        </div>
+        {% if show_staff_panel %}
+          <span class="tag">Staff view</span>
+          <button
+            id="caseToggle"
+            class="case-toggle"
+            aria-controls="casePanel"
+            aria-expanded="false"
+            type="button"
+          >View case</button>
+        {% endif %}
+      </header>
+      <main>
+        <section class="chat" aria-label="Report chat">
+          <ol id="progress" class="progress" aria-label="Progress">
+          </ol>
+          <div
+            id="log"
+            class="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            role="log"
+          ></div>
+          <div class="composer">
+            <form id="composer" autocomplete="on">
+              <button
+                id="photoBtn"
+                class="btn icon-btn"
+                aria-label="Add a photo"
+                disabled
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  fill="none"
+                  height="22"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="22"
+                >
+                  <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                </svg>
+              </button>
+              <input
+                id="fileInput"
+                class="sr"
+                accept="image/*"
+                aria-hidden="true"
+                tabindex="-1"
+                type="file"
+              >
+              <label id="msgLabel" class="sr" for="msg">Type your answer</label>
+              <input id="msg" maxlength="600" placeholder="Type your answer…" type="text">
+              <button id="sendBtn" class="btn" type="submit">Send</button>
+            </form>
+            <p id="err" class="err" role="alert"></p>
+          </div>
+        </section>
+        {% if show_staff_panel %}
+          <aside id="casePanel" aria-label="Case being built">
+            <button id="closeAside" class="btn icon-btn close-aside" type="button">Close</button>
+            <div>
+              <h2>Case record (staff view)</h2>
+              <ul id="fields" class="fields">
+              </ul>
+            </div>
+            <div>
+              <h2>Triage</h2>
+              <div id="triage" class="triage"></div>
+            </div>
+            <div class="notes">
+              <h2>How this decides</h2>
+              <p>
+                Priority starts from what the reporter chose and the issue's usual priority. Safety words can only raise it,
+                never lower it, so a short or non-English report is never pushed down the queue.
+              </p>
+              <p>Anything the assistant can't categorise goes to a person on the triage desk instead of a low-priority bucket.</p>
+              <p>Every category and priority is a suggestion until a triage officer confirms it.</p>
+            </div>
+            <details>
+              <summary>Developer view (data sent to the server)</summary>
+              <pre id="json"></pre>
+              <button id="copyJson" class="btn copy" type="button">Copy JSON</button>
+            </details>
+          </aside>
+        {% endif %}
+      </main>
+    </div>
+    <script>window.STREETFIX_API = "";</script>
+    <script src="{% static 'js/report-chat-i18n.js' %}"></script>
+    <script src="{% static 'js/report-chat.js' %}"></script>
+  </body>
+</html>

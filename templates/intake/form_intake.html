@@ -11,7 +11,10 @@
         <p>This is the main landing page for submitting and managing form submissions.</p>
         <hr class="uk-divider-icon">
         <div class="uk-flex uk-flex-wrap uk-flex-center uk-gap">
-          <a class="uk-button uk-button-primary" href="#">Submit New Form</a>
+          <a
+            class="uk-button uk-button-primary"
+            href="{% url 'intake:report_chat' %}"
+          >Submit New Form</a>
           <a class="uk-button uk-button-default" href="#">View Submissions</a>
         </div>
       </div>
