@@ -21,6 +21,7 @@ from .dispatch import NOT_YET_TRIAGED, assign_work, dispatchable_work, remove_fr
 from .forms import AssignWorkForm, RemoveFromWorkForm
 from .organisation_models import Employee
 from .overview import (
+    STAGE_FILTERS,
     job_flow,
     needs_attention,
     needs_case_officer_count,
@@ -118,7 +119,13 @@ class DispatchListView(ManagerMixin, TemplateView):
         """Split the department's work into unassigned and assigned."""
         context = super().get_context_data(**kwargs)
         dispatcher = self.manager()
-        work = list(dispatchable_work(dispatcher.department))
+        stage = self.request.GET.get("stage", "")
+        work_items = dispatchable_work(dispatcher.department)
+        if stage in STAGE_FILTERS:
+            work_items = work_items.filter(status__code__in=STAGE_FILTERS[stage])
+        else:
+            stage = ""
+        work = list(work_items)
         case_officers = {
             row.work_item_id: row.employee
             for row in WorkAssignment.objects.filter(
@@ -135,6 +142,11 @@ class DispatchListView(ManagerMixin, TemplateView):
             unassigned=[item for item in work if not item.has_case_officer],  # type: ignore[attr-defined]
             assigned=[item for item in work if item.has_case_officer],  # type: ignore[attr-defined]
             assigned_label=status_label("ASSIGNED"),
+            stage=stage,
+            stage_items=work,
+            stage_label=(
+                "Paused" if stage == "paused" else status_label(stage.upper())
+            ),
         )
         return context
 
