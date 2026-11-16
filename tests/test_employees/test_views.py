@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import resolve, reverse
 from django.utils import timezone
@@ -102,12 +103,18 @@ def test_dashboard_requires_sign_in(client: Client) -> None:
 def test_dashboard_is_for_managers_only(
     client: Client, make_employee: MakeEmployee
 ) -> None:
-    """Employees who cannot manage work are refused."""
+    """Officers are sent to their jobs; other accounts are refused."""
     client.force_login(make_employee("priya").user)
 
     response = client.get(reverse("employees:dashboard"))
 
-    assert response.status_code == 403
+    assert response.status_code == 302
+    assert response.headers["Location"] == reverse("employees:my_jobs")
+
+    client.force_login(
+        User.objects.create_user(username="public", email="public@example.com")
+    )
+    assert client.get(reverse("employees:dashboard")).status_code == 403
 
 
 def test_job_flow_counts_each_stage_for_the_department(
@@ -204,3 +211,34 @@ def test_workforce_shows_open_jobs_and_current_work(
     assert rows[priya].case_officer_jobs == 1
     assert rows[priya].working_on == current
     assert response.context["working"] == 1
+
+
+def test_paused_stage_links_to_its_jobs(
+    manager_client: Client, make_work_item: MakeWorkItem
+) -> None:
+    """Selecting Paused on the overview lists just the paused jobs."""
+    paused = set_status(make_work_item(), "ON_HOLD")
+    set_status(make_work_item(), "TRIAGED")
+
+    overview = manager_client.get(reverse("employees:dashboard"))
+    link = reverse("employees:dispatch") + "?stage=paused"
+    assert f'href="{link}"' in overview.content.decode()
+
+    response = manager_client.get(link)
+    assert [item.pk for item in response.context["stage_items"]] == [paused.pk]
+    assert response.context["stage_label"] == "Paused"
+    assert reverse("employees:dispatch_detail", args=[paused.pk]) in (
+        response.content.decode()
+    )
+
+
+def test_unknown_stage_shows_all_dispatch(
+    manager_client: Client, make_work_item: MakeWorkItem
+) -> None:
+    """An unrecognised stage falls back to the normal dispatch page."""
+    set_status(make_work_item(), "TRIAGED")
+
+    response = manager_client.get(reverse("employees:dispatch") + "?stage=nope")
+
+    assert response.context["stage"] == ""
+    assert len(response.context["unassigned"]) == 1

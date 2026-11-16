@@ -1,44 +1,70 @@
+{# djlint:off H021 #}
 {% extends "employees/manager_base.html" %}
 
 {% block title %}Dispatch{% endblock %}
 
 {% block heading %}
-  <h1>Dispatch</h1>
-  <p class="sub">Triaged work for {{ department }}, most pressing first. Give each job a case officer, and add support where a crew is needed.</p>
+  {% if stage %}
+    <div class="small muted" style="margin-bottom:6px">
+      <a href="{% url 'employees:dispatch' %}">Dispatch</a> / {{ stage_label }}
+    </div>
+    <h1>{{ stage_label }}</h1>
+    <p class="sub">{{ department }} jobs at this stage, most pressing first. Open a job to see or change it.</p>
+  {% else %}
+    <h1>Dispatch</h1>
+    <p class="sub">Triaged work for {{ department }}, most pressing first. Give each job a case officer, and add support where a crew is needed.</p>
+  {% endif %}
 {% endblock heading %}
 
 {% block manager_content %}
-  <section class="card">
-    <div class="card-h">
-      <h2 class="grow">Needs a case officer</h2>
-      {% if unassigned %}
-        <span class="count">{{ unassigned|length }}</span>
+  {% if stage %}
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">{{ stage_label }}</h2>
+        <span class="hint">{{ stage_items|length }} job{{ stage_items|length|pluralize }}</span>
+      </div>
+      {% if stage_items %}
+        {% include "employees/includes/dispatch_table.html" with items=stage_items show_officer=True %}
+
       {% else %}
-        <span class="chip ok">All clear</span>
+        <div class="empty">
+          <b>No jobs at this stage</b><a href="{% url 'employees:dispatch' %}">Back to all dispatch</a>
+        </div>
       {% endif %}
-    </div>
-    {% if unassigned %}
-      {% include "employees/includes/dispatch_table.html" with items=unassigned show_officer=False %}
-
-    {% else %}
-      <div class="empty">
-        <b>Every triaged job has a case officer</b>Nothing is waiting for dispatch.
+    </section>
+  {% else %}
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">Needs a case officer</h2>
+        {% if unassigned %}
+          <span class="count">{{ unassigned|length }}</span>
+        {% else %}
+          <span class="chip ok">All clear</span>
+        {% endif %}
       </div>
-    {% endif %}
-  </section>
+      {% if unassigned %}
+        {% include "employees/includes/dispatch_table.html" with items=unassigned show_officer=False %}
 
-  <section class="card">
-    <div class="card-h">
-      <h2 class="grow">{{ assigned_label }}</h2>
-      <span class="hint">{{ assigned|length }} job{{ assigned|length|pluralize }}</span>
-    </div>
-    {% if assigned %}
-      {% include "employees/includes/dispatch_table.html" with items=assigned show_officer=True %}
+      {% else %}
+        <div class="empty">
+          <b>Every triaged job has a case officer</b>Nothing is waiting for dispatch.
+        </div>
+      {% endif %}
+    </section>
 
-    {% else %}
-      <div class="empty">
-        <b>No assigned work yet</b>Jobs appear here once they have a case officer.
+    <section class="card">
+      <div class="card-h">
+        <h2 class="grow">{{ assigned_label }}</h2>
+        <span class="hint">{{ assigned|length }} job{{ assigned|length|pluralize }}</span>
       </div>
-    {% endif %}
-  </section>
+      {% if assigned %}
+        {% include "employees/includes/dispatch_table.html" with items=assigned show_officer=True %}
+
+      {% else %}
+        <div class="empty">
+          <b>No assigned work yet</b>Jobs appear here once they have a case officer.
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
 {% endblock manager_content %}

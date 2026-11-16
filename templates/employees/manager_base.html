@@ -65,6 +65,7 @@
                 <div class="sep"></div>
                 <form action="{% url 'logout' %}" method="post">
                   {% csrf_token %}
+                  <input name="next" type="hidden" value="{% url 'intake:form_intake' %}">
                   <button class="mi danger" type="submit">Sign out</button>
                 </form>
               </div>

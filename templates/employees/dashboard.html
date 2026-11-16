@@ -51,7 +51,7 @@
         {% if stage.url_name %}
           <a
             class="{% if not stage.count %}zero{% endif %}"
-            href="{% url stage.url_name %}"
+            href="{% url stage.url_name %}{% if stage.query %}?{{ stage.query }}{% endif %}"
           ><b>{{ stage.count }}</b><span>{{ stage.label }}</span></a>
         {% else %}
           <div class="st {% if not stage.count %}zero{% endif %}">
@@ -142,7 +142,7 @@
       <nav class="list">
         {% for stage in attention %}
           <a
-            href="{% if stage.url_name %}{% url stage.url_name %}{% else %}#{% endif %}"
+            href="{% if stage.url_name %}{% url stage.url_name %}{% if stage.query %}?{{ stage.query }}{% endif %}{% else %}#{% endif %}"
           >
             <span
               class="dotc

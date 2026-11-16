@@ -14,6 +14,13 @@ WAITING_TOO_LONG = timedelta(days=7)
 PAUSED = ("AWAITING_INFORMATION", "AWAITING_PARTS", "ON_HOLD")
 ENDED = ("CLOSED", "CANCELLED")
 
+# Stages of work the dispatch page can list on their own, by ?stage= value.
+STAGE_FILTERS = {
+    "in_progress": ("IN_PROGRESS",),
+    "paused": PAUSED,
+    "resolved": ("RESOLVED",),
+}
+
 
 @dataclass(frozen=True)
 class Stage:
@@ -23,6 +30,7 @@ class Stage:
     count: int
     url_name: str | None = None
     tone: str = ""
+    query: str = ""
 
 
 @dataclass(frozen=True)
@@ -134,9 +142,24 @@ def job_flow(department: Department) -> list[Stage]:
             "employees:dispatch",
         ),
         stage("ASSIGNED", "employees:dispatch"),
-        stage("IN_PROGRESS"),
-        Stage("Paused", work.filter(status__code__in=PAUSED).count()),
-        stage("RESOLVED"),
+        Stage(
+            labels.get("IN_PROGRESS", "IN_PROGRESS"),
+            work.filter(status__code="IN_PROGRESS").count(),
+            "employees:dispatch",
+            query="stage=in_progress",
+        ),
+        Stage(
+            "Paused",
+            work.filter(status__code__in=PAUSED).count(),
+            "employees:dispatch",
+            query="stage=paused",
+        ),
+        Stage(
+            labels.get("RESOLVED", "RESOLVED"),
+            work.filter(status__code="RESOLVED").count(),
+            "employees:dispatch",
+            query="stage=resolved",
+        ),
         Stage(
             "Closed today",
             work.filter(status__code="CLOSED", ended_at__gte=_start_of_today()).count(),
@@ -170,12 +193,16 @@ def needs_attention(department: Department) -> list[Stage]:
         Stage(
             f"Paused ({', '.join(paused[:-1])} or {paused[-1]})",
             work.filter(status__code__in=PAUSED).count(),
+            "employees:dispatch",
             tone="warning",
+            query="stage=paused",
         ),
         Stage(
             f"{resolved}, waiting to be {closed}",
             work.filter(status__code="RESOLVED").count(),
+            "employees:dispatch",
             tone="warning",
+            query="stage=resolved",
         ),
     ]
 
