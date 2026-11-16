@@ -1,5 +1,7 @@
 """Tests for authenticating employees through django-allauth."""
 
+from collections.abc import Callable
+
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
@@ -86,6 +88,30 @@ def test_sign_out_returns_to_login(manager_client: Client) -> None:
 
     assert response.headers["Location"] == reverse("intake:form_intake")
     assert "_auth_user_id" not in manager_client.session
+
+
+@pytest.mark.parametrize(
+    ("username", "page"),
+    [("manager", "employees:dashboard"), ("priya", "employees:my_jobs")],
+)
+def test_sign_out_buttons_go_to_the_home_page(
+    client: Client,
+    manager: Employee,
+    make_employee: Callable[..., Employee],
+    username: str,
+    page: str,
+) -> None:
+    """Managers and officers land on the home page, not the admin's page."""
+    employee = manager if username == "manager" else make_employee(username)
+    client.force_login(employee.user)
+    home = reverse("intake:form_intake")
+
+    content = client.get(reverse(page)).content.decode()
+    assert f'name="next" type="hidden" value="{home}"' in content
+
+    response = client.post(reverse("logout"), {"next": home})
+    assert response.headers["Location"] == home
+    assert "_auth_user_id" not in client.session
 
 
 def test_login_page_shows_site_branding_name(client: Client) -> None:
